@@ -127,7 +127,9 @@ def test_faixa_mostra_so_o_intervalo(pacote_rapido):
 def test_e_se_sem_variacao_nao_mostra_seta(pacote_rapido):
     at = _pagina()
     assert not _metrica(at, "MJ/km com as mudanças").delta
-    at.slider(key="es_massa").set_value(5).run()
+    # -20 %: o modelo de teste (XGBoost rápido) é uma função em degraus; uma variação pequena
+    # pode cair no mesmo degrau e não mudar a previsão (foi o que aconteceu com +5 % no CI Linux)
+    at.slider(key="es_massa").set_value(-20).run()
     assert _metrica(at, "MJ/km com as mudanças").delta
 
 
