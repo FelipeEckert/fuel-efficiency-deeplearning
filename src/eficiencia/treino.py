@@ -55,6 +55,8 @@ def treinar(
         pasta_relatorios = padrao_relatorios
     if storage is not None:
         (RAIZ / "optuna").mkdir(exist_ok=True)
+        # uma conexão para todos os estudos; com a URL, o Optuna abriria uma por estudo e deixaria abertas
+        storage = optuna.storages.RDBStorage(storage)
     df = carregar_base()
     h = hash8(df)
 
@@ -89,6 +91,9 @@ def treinar(
         resultados[nome], modelos[nome], params[nome] = r, modelo, p
         tentativas[nome] = r.n_tentativas + n_final
         violacoes[nome] = checar_monotonia(modelo, df)
+    if storage is not None:  # fecha a conexão com o banco antes de gravar os artefatos
+        storage.remove_session()
+        storage.engine.dispose()
 
     aprovados = [n for n in nomes if not violacoes[n]]
     vencedor = min(aprovados, key=lambda n: resultados[n].erro_mj) if aprovados else None

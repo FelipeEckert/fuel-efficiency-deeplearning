@@ -30,7 +30,9 @@ def test_estudo_retomavel(tmp_path):
     storage = f"sqlite:///{tmp_path / 'e.db'}"
     df = carregar_base()
     buscar_params("linear", df, 2, storage, "t", n_dobras=2)
-    buscar_params("linear", df, 2, storage, "t", n_dobras=2)
+    buscar_params("linear", df, 2, storage, "t", n_dobras=2)  # estudo já completo: não roda nada
+    assert len(optuna.load_study(study_name="t", storage=storage).trials) == 2
+    buscar_params("linear", df, 4, storage, "t", n_dobras=2)  # completa só as que faltam
     trials = optuna.load_study(study_name="t", storage=storage).trials
     assert len(trials) == 4
     # a retomada não pode repetir as amostras da primeira leva
