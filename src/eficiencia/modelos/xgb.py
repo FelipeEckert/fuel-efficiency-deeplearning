@@ -5,8 +5,8 @@ from typing import ClassVar
 import optuna
 from xgboost import XGBRegressor
 
-from eficiencia.esquema import MONOTONAS
 from eficiencia.modelos.base import CandidatoPorAlvo
+from eficiencia.modelos.restricoes import sinais_monotonia
 
 
 class XGBoost(CandidatoPorAlvo):
@@ -14,9 +14,7 @@ class XGBoost(CandidatoPorAlvo):
     PARAMS_RAPIDOS: ClassVar[dict] = {"n_estimators": 20, "learning_rate": 0.3}
 
     def _novo_estimador(self, alvo: str, nomes: list[str]):
-        # consumo cresce com massa/F0/F2 (mj_km) e cai (km/l): sinal oposto por tipo de alvo
-        sinal = 1 if alvo.startswith("mj_km") else -1
-        restricoes = tuple(sinal if n in MONOTONAS else 0 for n in nomes)
+        restricoes = tuple(int(s) for s in sinais_monotonia(nomes, alvo))
         return XGBRegressor(
             monotone_constraints=restricoes, random_state=self.semente, n_jobs=-1, **self.params
         )

@@ -6,6 +6,7 @@ import optuna
 from sklearn.ensemble import RandomForestRegressor
 
 from eficiencia.modelos.base import CandidatoPorAlvo
+from eficiencia.modelos.restricoes import sinais_monotonia
 
 
 class Floresta(CandidatoPorAlvo):
@@ -13,7 +14,9 @@ class Floresta(CandidatoPorAlvo):
     PARAMS_RAPIDOS: ClassVar[dict] = {"n_estimators": 20}
 
     def _novo_estimador(self, alvo: str, nomes: list[str]):
-        return RandomForestRegressor(random_state=self.semente, n_jobs=-1, **self.params)
+        return RandomForestRegressor(
+            monotonic_cst=sinais_monotonia(nomes, alvo), random_state=self.semente, n_jobs=-1, **self.params
+        )
 
     @staticmethod
     def sugerir(trial: optuna.Trial) -> dict:
