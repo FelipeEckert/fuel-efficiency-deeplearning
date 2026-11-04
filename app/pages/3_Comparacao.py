@@ -33,7 +33,7 @@ def _carregar(arquivo: Path) -> dict:
         ok = (
             isinstance(candidatos, dict)
             and len(candidatos) > 0
-            and metricas["vencedor"] in candidatos
+            and (metricas["vencedor"] is None or metricas["vencedor"] in candidatos)
             and all(
                 isinstance(c, dict) and isinstance(c.get("erro_mj"), (int, float))
                 for c in candidatos.values()
@@ -87,9 +87,12 @@ if not arquivo.exists():
 metricas = _carregar(arquivo)
 candidatos, vencedor = metricas["candidatos"], metricas["vencedor"]
 
-st.success(
-    f"Vencedor: {NOMES.get(vencedor, vencedor)} — {numero(100 * candidatos[vencedor]['erro_mj'], 1)} % de erro médio no MJ/km"
-)
+if vencedor:
+    st.success(
+        f"Vencedor: {NOMES.get(vencedor, vencedor)} — {numero(100 * candidatos[vencedor]['erro_mj'], 1)} % de erro médio no MJ/km"
+    )
+else:  # treino sem candidato aprovado: relatório e métricas existem, mas nenhum pacote foi salvo
+    st.warning("Nenhum modelo passou no teste de monotonia neste treino.")
 st.subheader("Candidatos")
 st.dataframe(_tabela(candidatos, vencedor), hide_index=True)
 st.caption(

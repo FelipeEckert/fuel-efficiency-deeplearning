@@ -15,7 +15,7 @@ Treino e comparação dos candidatos (gera `modelos/vencedor/` e `relatorios/`):
 ```bash
 uv run eficiencia-treinar                    # 50 tentativas por candidato
 uv run eficiencia-treinar --tentativas 200 --candidatos linear,xgboost
-uv run eficiencia-treinar --rapido           # modo rápido, para desenvolvimento e CI
+uv run eficiencia-treinar --rapido           # modo rápido, só para desenvolvimento e CI: grava em modelos/rapido/
 ```
 
 A atualização anual da base são dois comandos: `uv run eficiencia-limpar` e `uv run eficiencia-treinar`.
