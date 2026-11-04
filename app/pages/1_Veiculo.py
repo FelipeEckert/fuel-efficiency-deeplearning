@@ -1,7 +1,6 @@
 """Página Veículo: estimativa de um veículo, "e se" sobre ele e cenários salvos para comparação."""
 
 import sys
-from io import BytesIO
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pasta app/, para importar formulario
@@ -9,12 +8,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pasta app/, para
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from formulario import formulario_veiculo, modelo
+from formulario import excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
 
-from eficiencia.esquema import ENTRADAS, ROTULOS
 from eficiencia.fisica import classe_inercia
 from eficiencia.formato import numero
-from eficiencia.prever import SAIDAS, prever
+from eficiencia.prever import prever
 
 NOMES_KML = {
     "gasolina": "gasolina",
@@ -25,7 +23,8 @@ NOMES_KML = {
 
 
 def _sinal(valor: float, casas: int) -> str:
-    sinal = "+" if valor > 0 else "−" if valor < 0 else ""
+    """Sinal ASCII: o Streamlit decide a seta do delta pelo "-" inicial."""
+    sinal = "+" if valor > 0 else "-" if valor < 0 else ""
     return sinal + numero(abs(valor), casas)
 
 
@@ -39,47 +38,41 @@ def _prever(pacote, veiculo: dict) -> pd.Series | None:
         return None
 
 
-def _faixa(r: pd.Series, saida: str, casas: int) -> str | None:
-    minimo, maximo = r[f"{saida}_min"], r[f"{saida}_max"]
-    if pd.isna(minimo) or pd.isna(maximo):  # faixa indisponível (ex.: combustível não se aplica)
-        return None
-    return f"faixa {numero(minimo, casas)} – {numero(maximo, casas)}"
+def _valor(r: pd.Series, saida: str, casas: int, unidade: str) -> str:
+    return "—" if pd.isna(r[saida]) else f"{numero(r[saida], casas)} {unidade}"
+
+
+def _faixa(r: pd.Series, saida: str, casas: int, unidade: str) -> str:
+    """Texto no formato "1,62 MJ/km (1,54 – 1,70)"; "—" quando a saída não se aplica."""
+    texto = _valor(r, saida, casas, unidade)
+    if pd.isna(r[f"{saida}_min"]) or pd.isna(r[f"{saida}_max"]):
+        return texto
+    return f"{texto} ({numero(r[f'{saida}_min'], casas)} – {numero(r[f'{saida}_max'], casas)})"
+
+
+def _metrica(coluna, rotulo: str, r: pd.Series, saida: str, casas: int, unidade: str) -> None:
+    coluna.metric(rotulo, _valor(r, saida, casas, unidade))  # sem delta: nenhuma seta sobre a faixa
+    coluna.caption(_faixa(r, saida, casas, unidade))
 
 
 def _resultado(r: pd.Series) -> None:
     st.subheader("Resultado")
     c1, c2, c3 = st.columns(3)
-    c1.metric(
-        "MJ/km combinado",
-        f"{numero(r.mj_km, 2)} MJ/km",
-        _faixa(r, "mj_km", 2),
-        delta_color="off",
-    )
-    c2.metric(
-        "MJ/km urbano", f"{numero(r.mj_km_urbano, 2)} MJ/km", _faixa(r, "mj_km_urbano", 2), delta_color="off"
-    )
-    c3.metric(
-        "MJ/km estrada",
-        f"{numero(r.mj_km_estrada, 2)} MJ/km",
-        _faixa(r, "mj_km_estrada", 2),
-        delta_color="off",
-    )
+    _metrica(c1, "MJ/km combinado", r, "mj_km", 2, "MJ/km")
+    _metrica(c2, "MJ/km urbano", r, "mj_km_urbano", 2, "MJ/km")
+    _metrica(c3, "MJ/km estrada", r, "mj_km_estrada", 2, "MJ/km")
 
     aplicaveis = [c for c in NOMES_KML if pd.notna(r[f"kml_{c}"])]
     if aplicaveis:
         st.caption("Consumo em km/l (combinado urbano e estrada) para os combustíveis deste veículo")
         for coluna, comb in zip(st.columns(len(aplicaveis)), aplicaveis):
-            coluna.metric(
-                f"km/l {NOMES_KML[comb]}",
-                f"{numero(r[f'kml_{comb}'], 1)} km/l",
-                _faixa(r, f"kml_{comb}", 1),
-                delta_color="off",
-            )
+            _metrica(coluna, f"km/l {NOMES_KML[comb]}", r, f"kml_{comb}", 1, "km/l")
     for aviso in r["avisos"]:
         st.warning(aviso)
 
 
-def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series] | None:
+def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series]:
+    """Controles de variação; devolve o veículo ajustado e sua previsão (o original, se o ajuste falhar)."""
     st.subheader("E se…")
     st.caption("Mexa nos controles para ver quanto o consumo muda em relação ao veículo acima.")
     c1, c2 = st.columns(2)
@@ -99,7 +92,7 @@ def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series] 
 
     novo = _prever(pacote, alterado)
     if novo is None:
-        return None
+        return veiculo, original
     diferenca = novo.mj_km - original.mj_km
     st.metric(
         "MJ/km com as mudanças",
@@ -115,8 +108,10 @@ def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series] 
 
 def _salvar(nome_chave: str, cenario: dict) -> None:
     cenarios = st.session_state["cenarios"]
-    cenarios.append({"nome": st.session_state[nome_chave] or f"Cenário {len(cenarios) + 1}", **cenario})
-    st.session_state[nome_chave] = f"Cenário {len(cenarios) + 1}"
+    nomes = [c["nome"] for c in cenarios]
+    digitado = st.session_state[nome_chave].strip()
+    cenarios.append({"nome": nome_livre(digitado or nome_padrao(nomes), nomes), **cenario})
+    st.session_state[nome_chave] = nome_padrao([c["nome"] for c in cenarios])
 
 
 def _remover(indice: int) -> None:
@@ -148,38 +143,15 @@ def _grafico(cenarios: list[dict]) -> None:
             },
         )
     )
-    fig.update_layout(yaxis_title="MJ/km combinado", height=420, margin={"t": 30})
+    fig.update_layout(yaxis_title="MJ/km combinado", height=420, margin={"t": 30}, separators=",.")
     st.plotly_chart(fig)
-
-
-def _excel(cenarios: list[dict]) -> bytes:
-    """Uma linha por cenário: entradas que mudam em algum cenário e saídas com faixa."""
-    base = cenarios[0]["veiculo"]
-    alteradas = [
-        campo
-        for campo in ENTRADAS
-        if campo != "bateria_estimada"
-        and any(c["veiculo"][campo] != base[campo] and not pd.isna(c["veiculo"][campo]) for c in cenarios)
-    ]
-    linhas = []
-    for c in cenarios:
-        linha = {"Cenário": c["nome"]}
-        linha.update({ROTULOS[campo]: c["veiculo"][campo] for campo in alteradas})
-        for saida in SAIDAS:
-            nome = ROTULOS.get(saida, saida)
-            linha[nome] = c["resultado"][saida]
-            linha[f"{nome} (mín.)"] = c["resultado"][f"{saida}_min"]
-            linha[f"{nome} (máx.)"] = c["resultado"][f"{saida}_max"]
-        linhas.append(linha)
-    buffer = BytesIO()
-    pd.DataFrame(linhas).to_excel(buffer, index=False)
-    return buffer.getvalue()
 
 
 def _cenarios() -> None:
     st.subheader("Cenários")
-    st.caption("Salve o veículo atual como cenário. O primeiro salvo é a referência (base) da comparação.")
-    st.session_state.setdefault("nome_cenario", f"Cenário {len(st.session_state['cenarios']) + 1}")
+    st.caption("O primeiro cenário salvo é a referência (base) da comparação.")
+    if "nome_cenario" not in st.session_state:
+        st.session_state["nome_cenario"] = nome_padrao([c["nome"] for c in st.session_state["cenarios"]])
     st.text_input("Nome do cenário", key="nome_cenario")
 
     cenarios = st.session_state["cenarios"]
@@ -193,7 +165,7 @@ def _cenarios() -> None:
         col_botao.button("Remover", key=f"remover_{i}", on_click=_remover, args=(i,))
     st.download_button(
         "Exportar cenários (Excel)",
-        data=_excel(cenarios),
+        data=excel_cenarios(cenarios),
         file_name="cenarios_veiculo.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
@@ -216,13 +188,12 @@ if original is None:
     st.stop()
 _resultado(original)
 
-ajuste = _e_se(pacote, veiculo, original)
-if ajuste is not None:
-    alterado, novo = ajuste
-    st.button(
-        "Salvar cenário",
-        key="salvar_cenario",
-        on_click=_salvar,
-        args=("nome_cenario", {"veiculo": alterado, "resultado": novo.to_dict()}),
-    )
+alterado, novo = _e_se(pacote, veiculo, original)
+st.button(
+    "Salvar cenário",
+    key="salvar_cenario",
+    on_click=_salvar,
+    args=("nome_cenario", {"veiculo": alterado, "resultado": novo.to_dict()}),
+)
+st.caption("Salva o veículo com os ajustes atuais (sliders em 0 = veículo do formulário)")
 _cenarios()

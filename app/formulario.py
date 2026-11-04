@@ -1,11 +1,15 @@
 """Formulário de um veículo: as entradas do modelo em widgets Streamlit, reutilizado pelas páginas do app."""
 
+from io import BytesIO
+
+import pandas as pd
 import streamlit as st
 
 from eficiencia.artefatos import Pacote, carregar
 from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES, carregar_base
 from eficiencia.fisica import classe_inercia
 from eficiencia.formato import numero
+from eficiencia.prever import SAIDAS
 
 CATEGORIAS = {
     "SC": "Subcompacto",
@@ -156,3 +160,45 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
         "n_marchas": marchas,
         "bateria_kwh": bateria,
     }
+
+
+def nome_padrao(nomes: list[str]) -> str:
+    """Próximo "Cenário N" ainda não usado."""
+    n = len(nomes) + 1
+    while f"Cenário {n}" in nomes:
+        n += 1
+    return f"Cenário {n}"
+
+
+def nome_livre(nome: str, nomes: list[str]) -> str:
+    """O nome, ou "nome (2)", "nome (3)"... se já existir, para as barras não se sobreporem."""
+    if nome not in nomes:
+        return nome
+    n = 2
+    while f"{nome} ({n})" in nomes:
+        n += 1
+    return f"{nome} ({n})"
+
+
+def excel_cenarios(cenarios: list[dict]) -> bytes:
+    """Uma linha por cenário: entradas que mudam em algum cenário e saídas com faixa."""
+    base = cenarios[0]["veiculo"]
+    alteradas = [
+        campo
+        for campo in ENTRADAS
+        if campo != "bateria_estimada"
+        and any(c["veiculo"][campo] != base[campo] and not pd.isna(c["veiculo"][campo]) for c in cenarios)
+    ]
+    linhas = []
+    for c in cenarios:
+        linha = {"Cenário": c["nome"]}
+        linha.update({ROTULOS[campo]: c["veiculo"][campo] for campo in alteradas})
+        for saida in SAIDAS:
+            nome = ROTULOS.get(saida, saida)
+            linha[nome] = c["resultado"][saida]
+            linha[f"{nome} (mín.)"] = c["resultado"][f"{saida}_min"]
+            linha[f"{nome} (máx.)"] = c["resultado"][f"{saida}_max"]
+        linhas.append(linha)
+    buffer = BytesIO()
+    pd.DataFrame(linhas).to_excel(buffer, index=False)
+    return buffer.getvalue()
