@@ -23,6 +23,7 @@ def _sugerir_mlp(trial: optuna.Trial) -> dict:
         "dropout": trial.suggest_float("dropout", 0.0, 0.3),
         "lr": trial.suggest_float("lr", 1e-4, 1e-2, log=True),
         "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True),
+        "tamanho_lote": trial.suggest_categorical("tamanho_lote", [16, 32, 64]),
     }
 
 
@@ -43,6 +44,7 @@ class _Mlp:
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         max_epocas: int = 500,
+        tamanho_lote: int = 32,
     ) -> None:
         self.semente = semente
         self.camadas = camadas
@@ -51,6 +53,7 @@ class _Mlp:
         self.lr = lr
         self.weight_decay = weight_decay
         self.max_epocas = max_epocas
+        self.tamanho_lote = tamanho_lote
 
     def _construir(self, d_entrada: int, d_saida: int) -> nn.Sequential:
         blocos: list[nn.Module] = []
@@ -79,14 +82,18 @@ class _Mlp:
 
         self.rede = self._construir(X.shape[1], Y.shape[1])
         otimizador = torch.optim.Adam(self.rede.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        melhor, melhor_epoca, melhores_pesos = np.inf, 0, None
+        # pesos iniciais como salvaguarda: restaurados se a validação nunca for finita e menor
+        melhor, melhor_epoca = np.inf, 0
+        melhores_pesos = {k: v.clone() for k, v in self.rede.state_dict().items()}
         for epoca in range(self.max_epocas):
-            # lote completo (base pequena): um passo por época, mais rápido que minilotes na CPU
             self.rede.train()
-            perda = _perda(self.rede(Xt), Yt, Mt)
-            otimizador.zero_grad()
-            perda.backward()
-            otimizador.step()
+            perm = torch.as_tensor(rng.permutation(len(tr)))
+            for i in range(0, len(tr), self.tamanho_lote):
+                idx = perm[i : i + self.tamanho_lote]
+                perda = _perda(self.rede(Xt[idx]), Yt[idx], Mt[idx])
+                otimizador.zero_grad()
+                perda.backward()
+                otimizador.step()
             self.rede.eval()
             with torch.no_grad():
                 validacao = _perda(self.rede(Xv), Yv, Mv).item()
