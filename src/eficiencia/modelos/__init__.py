@@ -3,6 +3,9 @@
 from eficiencia.modelos.base import Candidato
 from eficiencia.modelos.floresta import Floresta
 from eficiencia.modelos.linear import Linear
+from eficiencia.modelos.rede import RedeMulti, RedePorAlvo
 from eficiencia.modelos.xgb import XGBoost
 
-CANDIDATOS: dict[str, type[Candidato]] = {c.nome: c for c in (Linear, Floresta, XGBoost)}
+CANDIDATOS: dict[str, type[Candidato]] = {
+    c.nome: c for c in (Linear, Floresta, XGBoost, RedePorAlvo, RedeMulti)
+}
