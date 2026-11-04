@@ -20,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 eficiencia-limpar = "eficiencia.dados:main"
+eficiencia-treinar = "eficiencia.treino:main"
 
 [build-system]
 requires = ["hatchling"]
