@@ -26,4 +26,18 @@ def test_estudo_retomavel(tmp_path):
     df = carregar_base()
     buscar_params("linear", df, 2, storage, "t", n_dobras=2)
     buscar_params("linear", df, 2, storage, "t", n_dobras=2)
-    assert len(optuna.load_study(study_name="t", storage=storage).trials) == 4
+    trials = optuna.load_study(study_name="t", storage=storage).trials
+    assert len(trials) == 4
+    # a retomada não pode repetir as amostras da primeira leva
+    assert [t.params for t in trials[:2]] != [t.params for t in trials[2:]]
+
+
+def test_nomes_de_estudo_separados_por_configuracao(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    df = carregar_base()
+    cv_aninhada("linear", df, n_tentativas=1, storage=storage, n_externas=2, n_internas=2)
+    primeiros = set(optuna.get_all_study_names(storage))
+    cv_aninhada("linear", df, n_tentativas=1, storage=storage, n_externas=3, n_internas=2)
+    todos = set(optuna.get_all_study_names(storage))
+    assert len(primeiros) == 2
+    assert len(todos) == len(primeiros) + 3

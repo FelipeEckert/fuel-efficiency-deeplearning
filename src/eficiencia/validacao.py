@@ -52,10 +52,11 @@ def _estudo(
         study_name=nome_estudo,
         storage=storage,
         direction="minimize",
-        sampler=optuna.samplers.TPESampler(seed=semente),
         pruner=optuna.pruners.MedianPruner(),
         load_if_exists=True,
     )
+    # semente deslocada pelos trials já feitos: retomar não repete as mesmas amostras
+    estudo.sampler = optuna.samplers.TPESampler(seed=semente + len(estudo.trials))
     dobras = dobras_por_grupo(df["grupo_cv"], n_dobras, semente)
 
     def objetivo(trial: optuna.Trial) -> float:
@@ -123,7 +124,8 @@ def cv_aninhada(
     n_total = 0
     for k, (tr, te) in enumerate(dobras_por_grupo(df["grupo_cv"], n_externas, semente)):
         treino = df.iloc[tr]
-        estudo = _estudo(nome, treino, n_tentativas, storage, f"{nome}-{h}-ext{k}", n_internas, semente)
+        nome_estudo = f"{nome}-{h}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
+        estudo = _estudo(nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente)
         n_total += len(estudo.trials)
         params = _params_finais(estudo, nome, rapido)
         modelo = cls(semente=semente, **params).fit(treino[ENTRADAS], treino[ALVOS])
