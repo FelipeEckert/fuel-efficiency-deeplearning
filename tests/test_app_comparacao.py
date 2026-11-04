@@ -93,3 +93,12 @@ def test_comparacao_sem_candidatos(tmp_path, monkeypatch):
     at = _relatorio(tmp_path, monkeypatch, json.dumps({"vencedor": "xgboost", "candidatos": {}}))
     assert not at.exception
     assert at.error[0].value == MSG_CORROMPIDO
+
+
+def test_comparacao_sem_vencedor(tmp_path, monkeypatch):
+    metricas = _metricas_completas()
+    metricas["vencedor"] = None
+    at = _relatorio(tmp_path, monkeypatch, json.dumps(metricas))
+    assert not at.exception and not at.error
+    assert at.warning[0].value == "Nenhum modelo passou no teste de monotonia neste treino."
+    assert len(at.dataframe[0].value) == 3

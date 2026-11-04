@@ -122,3 +122,33 @@ def test_propulsao_invalida_em_linha_real_e_reportada():
     assert r.erros == ["linha 1: Propulsão inválido: Foo"]
     assert r.media_mj_km == pytest.approx(2.0)  # a linha continua na média
     assert set(r.por_propulsao["propulsao"]) == {"não informado"}
+
+
+def test_ler_planilha_canoniza_categoricas_e_mantem_desconhecidas():
+    buf = io.BytesIO()
+    pd.DataFrame(
+        {
+            "nome": ["A", "B", "C"],
+            "volume": [1, 2, 3],
+            "propulsao": ["Hibrido", "Elétrico", "XYZ"],
+            "transmissao": ["AUTOMATICA", "manual", None],
+            "combustivel": ["Eletrico", "gasolina", "flex"],
+        }
+    ).to_excel(buf, index=False)
+    df, erros = ler_planilha(buf.getvalue())
+    assert erros == []
+    assert list(df["propulsao"]) == ["Híbrido", "Elétrico", "XYZ"]  # desconhecida segue como digitada
+    assert list(df["transmissao"][:2]) == ["automatica", "manual"]
+    assert list(df["combustivel"]) == ["eletrico", "gasolina", "flex"]
+    r = media_portfolio(df.assign(mj_km_conhecido=[1.0, 1.0, 1.0]))
+    assert any("XYZ" in e for e in r.erros)  # a validação ainda reporta o valor
+
+
+def test_totais_de_inclusao_e_volume():
+    df = pd.DataFrame(
+        {"nome": ["A", "B", "C"], "volume": [100, 300, 0], "mj_km_conhecido": [1.0, 0, 2.0]}
+    )  # B tem MJ/km inválido e C, volume zero: ambos ficam fora da média, mas contam no total
+    r = media_portfolio(df)
+    assert (r.n_incluidos, r.n_total) == (1, 3)
+    assert (r.volume_incluido, r.volume_total) == (100, 400)
+    assert len(r.erros) == 2

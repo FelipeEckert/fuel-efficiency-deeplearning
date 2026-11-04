@@ -1,4 +1,5 @@
 import io
+import re
 import sys
 from pathlib import Path
 
@@ -113,3 +114,52 @@ def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()
     at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()  # bateria padrão é 0
     assert any("Bateria" in e.value for e in at.error)
+
+
+def test_faixa_mostra_so_o_intervalo(pacote_rapido):
+    at = _pagina()
+    faixas = [c.value for c in at.caption if c.value.startswith("faixa de 90 %")]
+    assert len(faixas) >= 4
+    assert all(re.fullmatch(r"faixa de 90 %: \d+,\d{2} – \d+,\d{2}", f) for f in faixas[:3])  # MJ/km
+    assert all(re.fullmatch(r"faixa de 90 %: \d+,\d – \d+,\d", f) for f in faixas[3:])  # km/l
+
+
+def test_e_se_sem_variacao_nao_mostra_seta(pacote_rapido):
+    at = _pagina()
+    assert not _metrica(at, "MJ/km com as mudanças").delta
+    # -20 %: o modelo de teste (XGBoost rápido) é uma função em degraus; uma variação pequena
+    # pode cair no mesmo degrau e não mudar a previsão (foi o que aconteceu com +5 % no CI Linux)
+    at.slider(key="es_massa").set_value(-20).run()
+    assert _metrica(at, "MJ/km com as mudanças").delta
+
+
+def test_rotulos_legiveis_nos_selects(pacote_rapido):
+    at = _pagina()
+    assert "Dupla embreagem (DCT)" in at.selectbox(key="veiculo_transmissao").options
+    assert "Eletro-hidráulica" in at.selectbox(key="veiculo_direcao").options
+    assert "Elétrico" in at.selectbox(key="veiculo_combustivel").options
+    at.selectbox(key="veiculo_transmissao").set_value("dct").run()
+    assert at.session_state["veiculo_transmissao"] == "dct"
+
+
+def test_modelo_recarrega_quando_o_arquivo_muda(pacote_rapido, monkeypatch):
+    import os
+
+    import formulario
+
+    arquivo = Path(os.environ["EFICIENCIA_MODELO"]) / "pacote.joblib"
+    chamadas = []
+    original = formulario.carregar
+
+    def contar(pasta=None):
+        chamadas.append(pasta)
+        return original(pasta)
+
+    monkeypatch.setattr(formulario, "carregar", contar)
+    formulario._carregar_pacote.clear()
+    formulario.modelo()
+    formulario.modelo()
+    assert len(chamadas) == 1  # mesmo arquivo: vem do cache
+    os.utime(arquivo, (arquivo.stat().st_atime, arquivo.stat().st_mtime + 60))  # treino novo
+    formulario.modelo()
+    assert len(chamadas) == 2

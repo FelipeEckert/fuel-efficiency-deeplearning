@@ -38,21 +38,25 @@ def _prever(pacote, veiculo: dict) -> pd.Series | None:
         return None
 
 
+def _fixo(valor: float, casas: int) -> str:
+    """Decimais fixos em pt-BR: 1,70 e não 1,7."""
+    return f"{valor:.{casas}f}".replace(".", ",")
+
+
 def _valor(r: pd.Series, saida: str, casas: int, unidade: str) -> str:
-    return "—" if pd.isna(r[saida]) else f"{numero(r[saida], casas)} {unidade}"
+    return "—" if pd.isna(r[saida]) else f"{_fixo(r[saida], casas)} {unidade}"
 
 
-def _faixa(r: pd.Series, saida: str, casas: int, unidade: str) -> str:
-    """Texto no formato "1,62 MJ/km (1,54 – 1,70)"; "—" quando a saída não se aplica."""
-    texto = _valor(r, saida, casas, unidade)
+def _faixa(r: pd.Series, saida: str, casas: int) -> str:
+    """Só o intervalo de 90 %, no formato "faixa de 90 %: 1,54 – 1,70"; vazio quando a saída não tem faixa."""
     if pd.isna(r[f"{saida}_min"]) or pd.isna(r[f"{saida}_max"]):
-        return texto
-    return f"{texto} ({numero(r[f'{saida}_min'], casas)} – {numero(r[f'{saida}_max'], casas)})"
+        return ""
+    return f"faixa de 90 %: {_fixo(r[f'{saida}_min'], casas)} – {_fixo(r[f'{saida}_max'], casas)}"
 
 
 def _metrica(coluna, rotulo: str, r: pd.Series, saida: str, casas: int, unidade: str) -> None:
     coluna.metric(rotulo, _valor(r, saida, casas, unidade))  # sem delta: nenhuma seta sobre a faixa
-    coluna.caption(_faixa(r, saida, casas, unidade))
+    coluna.caption(_faixa(r, saida, casas))
 
 
 def _resultado(r: pd.Series) -> None:
@@ -94,12 +98,12 @@ def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series]:
     if novo is None:
         return veiculo, original
     diferenca = novo.mj_km - original.mj_km
-    st.metric(
-        "MJ/km com as mudanças",
-        f"{numero(novo.mj_km, 2)} MJ/km",
-        f"{_sinal(diferenca, 2)} MJ/km ({_sinal(diferenca / original.mj_km * 100, 1)} %) em relação ao original",
-        delta_color="inverse",
+    delta = (
+        f"{_sinal(diferenca, 2)} MJ/km ({_sinal(diferenca / original.mj_km * 100, 1)} %) em relação ao original"
+        if diferenca
+        else None  # sem variação, sem seta
     )
+    st.metric("MJ/km com as mudanças", f"{_fixo(novo.mj_km, 2)} MJ/km", delta, delta_color="inverse")
     for aviso in novo["avisos"]:
         if aviso not in original["avisos"]:
             st.warning(aviso)
@@ -161,7 +165,7 @@ def _cenarios() -> None:
     for i, c in enumerate(cenarios):
         col_nome, col_mj, col_botao = st.columns([3, 2, 1])
         col_nome.write(f"**{c['nome']}**" + (" (base)" if i == 0 else ""))
-        col_mj.write(f"{numero(c['resultado']['mj_km'], 2)} MJ/km")
+        col_mj.write(f"{_fixo(c['resultado']['mj_km'], 2)} MJ/km")
         col_botao.button("Remover", key=f"remover_{i}", on_click=_remover, args=(i,))
     st.download_button(
         "Exportar cenários (Excel)",

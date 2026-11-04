@@ -21,6 +21,7 @@ from eficiencia.portfolio import (
     ler_planilha,
     media_portfolio,
     modelo_planilha,
+    totais_portfolio,
 )
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -76,8 +77,16 @@ def _colunas() -> dict:
     return colunas
 
 
+def _com_nomes(df: pd.DataFrame) -> pd.DataFrame:
+    """Veículo sem nome aparece como "linha N" (posição na tabela), e não como "nan"."""
+    posicoes = pd.Series([f"linha {i}" for i in range(1, len(df) + 1)], index=df.index)
+    sem_nome = df["nome"].isna() | df["nome"].astype(str).str.strip().eq("")
+    return df.assign(nome=df["nome"].where(~sem_nome, posicoes))
+
+
 def _calcular(df: pd.DataFrame, pacote) -> ResultadoPortfolio:
     """Sem modelo, só as linhas com MJ/km conhecido são calculadas; as outras viram erro, com o número da linha."""
+    df = _com_nomes(df)
     if pacote is not None:
         return media_portfolio(df, pacote)
     conhecida = df["mj_km_conhecido"].notna().to_numpy()
@@ -91,6 +100,7 @@ def _calcular(df: pd.DataFrame, pacote) -> ResultadoPortfolio:
         f"linha {n}: sem MJ/km conhecido e sem modelo treinado para estimar"
         for n in np.flatnonzero(~conhecida) + 1
     ]
+    resultado.n_total, resultado.volume_total = totais_portfolio(df)  # as linhas sem MJ/km também contam
     return resultado
 
 
@@ -189,6 +199,10 @@ with topo:
                 st.warning(f"{linha.nome}: {aviso}")
         media = resultado.media_mj_km
         st.metric("MJ/km médio do portfólio", "—" if pd.isna(media) else f"{numero(media, 2)} MJ/km")
+        pct = 100 * resultado.volume_incluido / resultado.volume_total if resultado.volume_total else 0
+        st.caption(
+            f"{resultado.n_incluidos} de {resultado.n_total} veículos incluídos ({numero(pct, 1)} % do volume)"
+        )
         if not resultado.tabela.empty:
             c1, c2 = st.columns(2)
             c1.subheader("Por propulsão")
