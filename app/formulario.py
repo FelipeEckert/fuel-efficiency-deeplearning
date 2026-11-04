@@ -1,11 +1,13 @@
 """Formulário de um veículo: as entradas do modelo em widgets Streamlit, reutilizado pelas páginas do app."""
 
+import os
 from io import BytesIO
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-from eficiencia.artefatos import Pacote, carregar
+from eficiencia.artefatos import PASTA_MODELO, Pacote, carregar
 from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES, carregar_base
 from eficiencia.fisica import classe_inercia
 from eficiencia.formato import numero
@@ -30,11 +32,35 @@ CATEGORIAS = {
     "E": "Esportivo",
 }
 CAMPOS = [c for c in ENTRADAS if c != "bateria_estimada"]  # sempre False no app
+# rótulos legíveis dos selects; o valor guardado continua sendo o código da base
+NOMES_VALORES = {
+    "transmissao": {
+        "automatica": "Automática",
+        "manual": "Manual",
+        "cvt": "CVT",
+        "dct": "Dupla embreagem (DCT)",
+        "dht": "Híbrida dedicada (DHT)",
+        "direta": "Direta (1 marcha)",
+    },
+    "direcao": {"eletrica": "Elétrica", "hidraulica": "Hidráulica", "eletro-hidraulica": "Eletro-hidráulica"},
+    "combustivel": {"gasolina": "Gasolina", "flex": "Flex", "diesel": "Diesel", "eletrico": "Elétrico"},
+}
+
+
+def _nome(campo: str):
+    nomes = NOMES_VALORES[campo]
+    return lambda codigo: nomes.get(codigo, codigo)
 
 
 @st.cache_resource
+def _carregar_pacote(pasta: str, mtime: float) -> Pacote:
+    """O mtime entra só na chave do cache: um treino novo (arquivo regravado) carrega o modelo de novo."""
+    return carregar(Path(pasta))
+
+
 def modelo() -> Pacote:
-    return carregar()
+    pasta = Path(os.environ.get("EFICIENCIA_MODELO", PASTA_MODELO))
+    return _carregar_pacote(str(pasta), (pasta / "pacote.joblib").stat().st_mtime)
 
 
 def _padrao_base() -> dict:
@@ -94,7 +120,11 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
     )
     eletrico = propulsao == "Elétrico"
     combustivel = c2.selectbox(
-        ROTULOS["combustivel"], VALORES["combustivel"], key=chave_de("combustivel"), disabled=eletrico
+        ROTULOS["combustivel"],
+        VALORES["combustivel"],
+        key=chave_de("combustivel"),
+        disabled=eletrico,
+        format_func=_nome("combustivel"),
     )
     categoria = c1.selectbox(
         ROTULOS["categoria"],
@@ -105,8 +135,15 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
     proconve = c2.selectbox(
         ROTULOS["categoria_proconve"], VALORES["categoria_proconve"], key=chave_de("categoria_proconve")
     )
-    transmissao = c1.selectbox(ROTULOS["transmissao"], VALORES["transmissao"], key=chave_de("transmissao"))
-    direcao = c2.selectbox(ROTULOS["direcao"], VALORES["direcao"], key=chave_de("direcao"))
+    transmissao = c1.selectbox(
+        ROTULOS["transmissao"],
+        VALORES["transmissao"],
+        key=chave_de("transmissao"),
+        format_func=_nome("transmissao"),
+    )
+    direcao = c2.selectbox(
+        ROTULOS["direcao"], VALORES["direcao"], key=chave_de("direcao"), format_func=_nome("direcao")
+    )
 
     st.subheader("Massa e inércia")
     c1, c2, c3 = st.columns(3)
