@@ -1,7 +1,12 @@
+from typing import ClassVar
+
 import numpy as np
 import optuna
+import pandas as pd
 
-from eficiencia.esquema import carregar_base
+from eficiencia.esquema import ALVOS, carregar_base
+from eficiencia.modelos import CANDIDATOS
+from eficiencia.modelos.base import Candidato
 from eficiencia.validacao import buscar_params, cv_aninhada, dobras_por_grupo
 
 
@@ -41,3 +46,26 @@ def test_nomes_de_estudo_separados_por_configuracao(tmp_path):
     todos = set(optuna.get_all_study_names(storage))
     assert len(primeiros) == 2
     assert len(todos) == len(primeiros) + 3
+
+
+def test_busca_rapida_treina_com_params_rapidos(monkeypatch):
+    registrados: list[dict] = []
+
+    class Falso(Candidato):
+        nome = "falso"
+        PARAMS_RAPIDOS: ClassVar[dict] = {"max_epocas": 5}
+
+        @staticmethod
+        def sugerir(trial):
+            return {"x": trial.suggest_float("x", 0.0, 1.0)}
+
+        def fit(self, X, Y):
+            registrados.append(dict(self.params))
+            return self
+
+        def predict(self, X):
+            return pd.DataFrame(1.0, index=X.index, columns=ALVOS)
+
+    monkeypatch.setitem(CANDIDATOS, "falso", Falso)
+    buscar_params("falso", carregar_base(), 2, None, "falso-rapido", n_dobras=2, rapido=True)
+    assert registrados and all(p["max_epocas"] == 5 for p in registrados)

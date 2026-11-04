@@ -46,6 +46,7 @@ def _estudo(
     nome_estudo: str,
     n_dobras: int,
     semente: int,
+    rapido: bool = False,
 ) -> optuna.Study:
     cls = CANDIDATOS[nome]
     estudo = optuna.create_study(
@@ -61,6 +62,8 @@ def _estudo(
 
     def objetivo(trial: optuna.Trial) -> float:
         params = cls.sugerir(trial)
+        if rapido:  # a busca precisa treinar com os mesmos parâmetros do refit rápido
+            params = {**params, **cls.PARAMS_RAPIDOS}
         erros = []
         for k, (tr, te) in enumerate(dobras):
             modelo = cls(semente=semente, **params).fit(df.iloc[tr][ENTRADAS], df.iloc[tr][ALVOS])
@@ -92,7 +95,7 @@ def buscar_params(
     rapido: bool = False,
     semente: int = 0,
 ) -> dict:
-    estudo = _estudo(nome, df, n_tentativas, storage, nome_estudo, n_dobras, semente)
+    estudo = _estudo(nome, df, n_tentativas, storage, nome_estudo, n_dobras, semente, rapido)
     return _params_finais(estudo, nome, rapido)
 
 
@@ -125,7 +128,7 @@ def cv_aninhada(
     for k, (tr, te) in enumerate(dobras_por_grupo(df["grupo_cv"], n_externas, semente)):
         treino = df.iloc[tr]
         nome_estudo = f"{nome}-{h}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
-        estudo = _estudo(nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente)
+        estudo = _estudo(nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente, rapido)
         n_total += len(estudo.trials)
         params = _params_finais(estudo, nome, rapido)
         modelo = cls(semente=semente, **params).fit(treino[ENTRADAS], treino[ALVOS])

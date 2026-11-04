@@ -88,24 +88,25 @@ CV_PARA_KW = 0.7355
 
 def ler_aba(caminho, aba=ABA):
     """Retorna dict {linha: {coluna: valor}} com os valores em cache do Excel."""
-    z = zipfile.ZipFile(caminho)
-    shared = [
-        "".join(t.text or "" for t in si.iter(NS + "t"))
-        for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall(NS + "si")
-    ]
-    linhas = {}
-    for _, el in ET.iterparse(z.open(aba)):
-        if el.tag != NS + "row":
-            continue
-        vals = {}
-        for c in el.findall(NS + "c"):
-            v, t = c.find(NS + "v"), c.get("t")
-            if t == "inlineStr":
-                vals[_col(c.get("r"))] = "".join(e.text or "" for e in c.iter(NS + "t"))
-            elif v is not None:
-                vals[_col(c.get("r"))] = shared[int(v.text)] if t == "s" else v.text
-        linhas[int(el.get("r"))] = vals
-        el.clear()
+    with zipfile.ZipFile(caminho) as z:
+        shared = [
+            "".join(t.text or "" for t in si.iter(NS + "t"))
+            for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall(NS + "si")
+        ]
+        linhas = {}
+        with z.open(aba) as f:
+            for _, el in ET.iterparse(f):
+                if el.tag != NS + "row":
+                    continue
+                vals = {}
+                for c in el.findall(NS + "c"):
+                    v, t = c.find(NS + "v"), c.get("t")
+                    if t == "inlineStr":
+                        vals[_col(c.get("r"))] = "".join(e.text or "" for e in c.iter(NS + "t"))
+                    elif v is not None:
+                        vals[_col(c.get("r"))] = shared[int(v.text)] if t == "s" else v.text
+                linhas[int(el.get("r"))] = vals
+                el.clear()
     return linhas
 
 
