@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 
 from eficiencia.artefatos import Pacote, carregar
-from eficiencia.entrada import _campo, _chave, _numero, _vazio, validar
-from eficiencia.esquema import ENTRADAS, ROTULOS
+from eficiencia.entrada import _CANONICOS, _campo, _chave, _numero, _vazio, validar
+from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS
 from eficiencia.prever import prever
 
 COLUNAS_PORTFOLIO = ["nome", "volume", "mj_km_conhecido"] + [c for c in ENTRADAS if c != "bateria_estimada"]
@@ -47,6 +47,10 @@ class ResultadoPortfolio:
     por_propulsao: pd.DataFrame
     por_categoria: pd.DataFrame
     erros: list[str]
+    n_incluidos: int
+    n_total: int
+    volume_incluido: float
+    volume_total: float
 
 
 def modelo_planilha() -> bytes:
@@ -74,6 +78,10 @@ def ler_planilha(arquivo: bytes | BinaryIO) -> tuple[pd.DataFrame, list[str]]:
     df = pd.DataFrame(
         {c: bruto[origem[c]] if c in origem else np.nan for c in COLUNAS_PORTFOLIO}, index=bruto.index
     )
+    for coluna in CATEGORICAS:  # "Hibrido" -> "Híbrido": o editor só mostra as opções canônicas
+        df[coluna] = df[coluna].map(
+            lambda v, c=coluna: _CANONICOS[c].get(_chave(v.strip()), v) if isinstance(v, str) else v
+        )
     return df, []
 
 
@@ -84,6 +92,12 @@ def _quebra(tabela: pd.DataFrame, coluna: str) -> pd.DataFrame:
     g = pesos.groupby(coluna, as_index=False).sum()
     g["media_mj_km"] = g.pv / g.volume
     return g[[coluna, "volume", "media_mj_km"]]
+
+
+def totais_portfolio(df: pd.DataFrame) -> tuple[int, float]:
+    """Número de veículos e volume da tabela inteira; volume inválido conta como zero."""
+    volumes = [_volume(v) for v in df["volume"]]
+    return len(df), float(sum(v for v in volumes if v is not None and v > 0))
 
 
 def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> ResultadoPortfolio:
@@ -144,10 +158,15 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
     tabela = tabela.astype({"volume": float, "mj_km": float, "mj_km_min": float, "mj_km_max": float})
     total = tabela.volume.sum()
     media = float((tabela.volume * tabela.mj_km).sum() / total) if total > 0 else nan
+    n_total, volume_total = totais_portfolio(df)
     return ResultadoPortfolio(
         tabela=tabela,
         media_mj_km=media,
         por_propulsao=_quebra(tabela, "propulsao"),
         por_categoria=_quebra(tabela, "categoria"),
         erros=erros,
+        n_incluidos=len(tabela),
+        n_total=n_total,
+        volume_incluido=float(total),
+        volume_total=volume_total,
     )

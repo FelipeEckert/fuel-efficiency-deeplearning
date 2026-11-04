@@ -109,3 +109,11 @@ def test_sem_modelo_sem_linhas_conhecidas_nao_quebra(pacote_rapido, monkeypatch)
     assert any(e.value.startswith("linha 1:") for e in at.error)
     at = _pagina()
     assert not at.exception
+
+
+def test_caption_de_inclusao_e_linha_sem_nome(pacote_rapido):
+    at = _pagina(_tabela([("A", 100, 1.5), ("B", 300, 0)]))
+    assert any(c.value == "1 de 2 veículos incluídos (25 % do volume)" for c in at.caption)
+    at = _pagina(_tabela([(None, 100, 1.5), ("B", 300, 2.0)]))
+    por_veiculo = next(d.value for d in at.dataframe if "Nome" in d.value.columns)
+    assert list(por_veiculo["Nome"]) == ["linha 1", "B"]
