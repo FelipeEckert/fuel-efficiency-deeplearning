@@ -176,9 +176,12 @@ otimizando durante a noite, todos os dias. Consequências para o build:
   aplicado a **todos os candidatos** sobre um conjunto fixo de veículos da base.
 - **Só concorre ao posto de vencedor quem passa no teste de monotonia** (minha decisão; o "e se"
   incoerente é anti-objetivo). O vencedor é o de menor erro entre os que passam; o relatório mostra
-  todos, inclusive os reprovados. O builder pode ajudar redes/linear a passar (ex.: penalidade de
-  monotonia na perda, ou restringir sinais), mas não é obrigatório. O teste roda no CI contra o
-  artefato versionado e precisa estar verde.
+  todos, inclusive os reprovados. O teste roda no CI contra o artefato versionado e precisa estar verde.
+- **Todos os candidatos são monotônicos por construção** (decisão do usuário, 2026-11-04, após o
+  treino rápido mostrar que só o XGBoost passava): regressão linear com sinal dos coeficientes
+  restrito; Random Forest com `monotonic_cst`; redes com arquitetura monotônica (caminho de pesos
+  positivos para massa, classe de inércia, F0 e F2, modulado pelas demais entradas). Busca das redes
+  ampliada: 1–5 camadas ocultas, 32–512 neurônios. Assim os cinco competem de igual para igual.
 
 ### 7.4 Incerteza
 
