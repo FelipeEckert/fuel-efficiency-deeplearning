@@ -1,14 +1,13 @@
 """Portfólio de veículos: MJ/km médio ponderado pelo volume, com valores reais ou estimados pelo modelo."""
 
 import io
-import zipfile
+import re
 from dataclasses import dataclass
 from math import nan
 from typing import BinaryIO
 
 import numpy as np
 import pandas as pd
-from openpyxl.utils.exceptions import InvalidFileException
 
 from eficiencia.artefatos import Pacote, carregar
 from eficiencia.entrada import _campo, _chave, _numero, _vazio, validar
@@ -31,6 +30,14 @@ _COLUNAS_TABELA = [
     "propulsao",
     "categoria",
 ]
+_MILHARES_PT = re.compile(r"\d{1,3}(\.\d{3})+(,\d+)?")  # "10.000" e "1.000,5"; "1.5" segue decimal
+
+
+def _volume(valor) -> float | None:
+    """Volume: texto com ponto de milhar pt-BR vira milhar; o resto segue _numero (decimal com vírgula ou ponto)."""
+    if isinstance(valor, str) and _MILHARES_PT.fullmatch(valor.strip()):
+        valor = valor.strip().replace(".", "")
+    return _numero(valor)
 
 
 @dataclass
@@ -52,8 +59,10 @@ def ler_planilha(arquivo: bytes | BinaryIO) -> tuple[pd.DataFrame, list[str]]:
     """Lê a planilha pelo rótulo ou pelo nome da coluna; colunas opcionais ausentes viram vazias."""
     try:
         bruto = pd.read_excel(io.BytesIO(arquivo) if isinstance(arquivo, bytes) else arquivo)
-    except ValueError, zipfile.BadZipFile, InvalidFileException:
-        return pd.DataFrame(columns=COLUNAS_PORTFOLIO), ["arquivo não é uma planilha Excel (.xlsx) válida"]
+    except Exception as erro:  # noqa: BLE001 - qualquer falha de leitura vira mensagem, nunca exceção
+        return pd.DataFrame(columns=COLUNAS_PORTFOLIO), [
+            f"não foi possível ler a planilha: {type(erro).__name__}"
+        ]
     origem: dict[str, object] = {}
     for coluna in bruto.columns:
         canonico = _CABECALHOS.get(_chave(str(coluna)))
@@ -84,22 +93,24 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
     a_estimar: list[pd.DataFrame] = []
     tem_volume = False
     for pos, bruto in enumerate(df.to_dict("records"), start=1):
-        volume = _numero(bruto.get("volume"))
+        volume = _volume(bruto.get("volume"))
         if volume is None or volume <= 0:
             erros.append(f"linha {pos}: volume deve ser maior que zero")
             continue
         tem_volume = True
-        base = {
-            "nome": bruto.get("nome"),
-            "volume": volume,
-            "propulsao": _campo("propulsao", bruto.get("propulsao"), False)[0] or NAO_INFORMADO,
-            "categoria": _campo("categoria", bruto.get("categoria"), False)[0] or NAO_INFORMADO,
-        }
+        base = {"nome": bruto.get("nome"), "volume": volume}
+        problemas_spec: list[str] = []  # especificações opcionais: só valor presente e inválido é reportado
+        for coluna in ("propulsao", "categoria"):
+            valor, problema = _campo(coluna, bruto.get(coluna), False)
+            base[coluna] = valor or NAO_INFORMADO
+            if problema:
+                problemas_spec.append(f"linha {pos}: {ROTULOS[coluna]} {problema}")
         if not _vazio(bruto.get("mj_km_conhecido")):
             real = _numero(bruto.get("mj_km_conhecido"))
             if real is None or real <= 0:
                 erros.append(f"linha {pos}: MJ/km conhecido deve ser número maior que zero")
                 continue
+            erros += problemas_spec
             linhas[pos] = {
                 **base,
                 "mj_km": real,

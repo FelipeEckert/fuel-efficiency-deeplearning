@@ -80,3 +80,45 @@ def test_ler_planilha_aceita_nomes_de_coluna():
     )
     df, erros = ler_planilha(buf.getvalue())
     assert erros == [] and list(df.columns) == COLUNAS_PORTFOLIO and df.loc[0, "volume"] == 10
+
+
+@pytest.mark.parametrize("conteudo", [b"", b"nao e excel"])
+def test_ler_planilha_nunca_levanta(conteudo):
+    df, erros = ler_planilha(conteudo)
+    assert df.empty and list(df.columns) == COLUNAS_PORTFOLIO
+    assert len(erros) == 1 and erros[0].startswith("não foi possível ler a planilha: ")
+
+
+def test_volume_texto_com_milhar_pt_br():
+    df = pd.DataFrame(
+        {
+            "nome": ["A", "B", "C", "D"],
+            "volume": ["10.000", "1.250.000", "1.000,5", 1000],
+            "mj_km_conhecido": [1.0, 2.0, 1.5, 3.0],
+        }
+    )
+    r = media_portfolio(df)
+    assert list(r.tabela["volume"]) == [10000.0, 1250000.0, 1000.5, 1000.0] and r.erros == []
+    total = 10000 + 1250000 + 1000.5 + 1000
+    assert r.media_mj_km == pytest.approx((10000 * 1.0 + 1250000 * 2.0 + 1000.5 * 1.5 + 1000 * 3.0) / total)
+
+
+def test_volume_decimal_pt_br_e_numerico_seguem_iguais():
+    df = pd.DataFrame({"nome": ["A", "B"], "volume": ["1.5", "2,5"], "mj_km_conhecido": [1.0, 2.0]})
+    assert list(media_portfolio(df).tabela["volume"]) == [1.5, 2.5]
+
+
+def test_propulsao_invalida_em_linha_real_e_reportada():
+    df = pd.DataFrame(
+        {
+            "nome": ["A", "B"],
+            "volume": [100, 100],
+            "mj_km_conhecido": [1.0, 3.0],
+            "propulsao": ["Foo", None],
+            "categoria": [None, "M"],
+        }
+    )
+    r = media_portfolio(df)
+    assert r.erros == ["linha 1: Propulsão inválido: Foo"]
+    assert r.media_mj_km == pytest.approx(2.0)  # a linha continua na média
+    assert set(r.por_propulsao["propulsao"]) == {"não informado"}
