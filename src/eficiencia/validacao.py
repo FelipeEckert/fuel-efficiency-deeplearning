@@ -74,7 +74,9 @@ def _estudo(
                 raise optuna.TrialPruned()
         return float(np.concatenate(erros).mean())
 
-    estudo.optimize(objetivo, n_trials=n_tentativas)
+    # n_tentativas é o total do estudo: retomar completa só as que faltam (uma tentativa interrompida não conta)
+    feitas = sum(t.state.is_finished() for t in estudo.trials)
+    estudo.optimize(objetivo, n_trials=max(0, n_tentativas - feitas))
     return estudo
 
 

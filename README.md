@@ -13,14 +13,14 @@ uv run streamlit run app/Inicio.py
 Treino e comparação dos candidatos (gera `modelos/vencedor/` e `relatorios/`):
 
 ```bash
-uv run eficiencia-treinar                    # 50 tentativas por candidato
-uv run eficiencia-treinar --tentativas 200 --candidatos linear,xgboost
+uv run eficiencia-treinar                    # 50 tentativas em cada estudo do Optuna
+uv run eficiencia-treinar --tentativas 200 --candidatos linear,xgboost   # vencedor e relatório só entre os listados
 uv run eficiencia-treinar --rapido           # modo rápido, só para desenvolvimento e CI: grava em modelos/rapido/
 ```
 
 A atualização anual da base são dois comandos: `uv run eficiencia-limpar` e `uv run eficiencia-treinar`.
 
-Os estudos do Optuna ficam em `optuna/estudos.db` e são retomados a cada execução.
+Os estudos do Optuna ficam em `optuna/estudos.db` e são retomados a cada execução. `--tentativas N` é o total de cada estudo: um treino interrompido completa só o que falta, e um estudo que já tem N tentativas não roda de novo. Para buscar mais, aumente N (por exemplo, de 50 para 100).
 
 ### Treino noturno
 
@@ -33,7 +33,7 @@ cd ../fuel_treino && uv sync
 uv run eficiencia-treinar --tentativas 50
 ```
 
-- Nas noites seguintes, atualize o código com `git -C ../fuel_treino pull` e rode o treino de novo. Rodar de novo continua os estudos do Optuna, sem recomeçar.
+- Nas noites seguintes, atualize o código com `git -C ../fuel_treino pull` e rode o treino de novo com um `--tentativas` maior (100, depois 150...). Cada estudo continua de onde parou até chegar ao novo total.
 - Impeça o Windows de suspender a máquina: Configurações → Sistema → Energia → Suspender: Nunca (na tomada).
 - Acompanhe o progresso com `uv run optuna-dashboard sqlite:///optuna/estudos.db` (dentro de `../fuel_treino`), em http://localhost:8080.
 
