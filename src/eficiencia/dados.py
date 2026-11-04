@@ -1,10 +1,11 @@
 """Limpa a aba "Dados de Entrada" da planilha PBEV e gera um CSV com uma linha por homologação.
 
-Uso:  python scripts/limpar_pbev.py [caminho.xlsm] [saida.csv]
+Uso:  uv run eficiencia-limpar [caminho.xlsm] [saida.csv]
 
 Lê o .xlsm direto do XML (valores já calculados pelo Excel); não executa macros
 e não precisa de openpyxl.
 """
+
 import re
 import sys
 import unicodedata
@@ -15,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RAIZ = Path(__file__).resolve().parents[1]
+RAIZ = Path(__file__).resolve().parents[2]
 ENTRADA = RAIZ / "data/raw/PED - PLANILHA DE ENTRADA DE DADOS PBEV 2026_05-05-2026.xlsm"
 COMPLEMENTO_BATERIAS = RAIZ / "data/raw/complemento_baterias.csv"
 CHAVE_COMPLEMENTO = ["marca", "modelo", "potencia_kw", "massa_om_kg"]
@@ -26,30 +27,72 @@ NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
 # índice da coluna na aba (0 = coluna A) -> nome no CSV
 COLUNAS = {
-    1: "nacional_importado", 2: "acima_limite_vendas", 3: "categoria", 4: "area_m2",
-    5: "marca", 6: "modelo", 7: "motor", 8: "potencia_txt", 9: "transmissao_txt",
-    10: "versao", 11: "propulsao", 14: "direcao", 15: "combustivel", 16: "cilindrada_txt",
-    17: "massa_om_kg", 20: "f0_n", 22: "f2_n_kmh2", 24: "pbt_kg", 25: "classe_inercia_kg",
-    48: "categoria_proconve", 49: "lcvm", 50: "nome_homologado", 52: "bateria_kwh",
+    1: "nacional_importado",
+    2: "acima_limite_vendas",
+    3: "categoria",
+    4: "area_m2",
+    5: "marca",
+    6: "modelo",
+    7: "motor",
+    8: "potencia_txt",
+    9: "transmissao_txt",
+    10: "versao",
+    11: "propulsao",
+    14: "direcao",
+    15: "combustivel",
+    16: "cilindrada_txt",
+    17: "massa_om_kg",
+    20: "f0_n",
+    22: "f2_n_kmh2",
+    24: "pbt_kg",
+    25: "classe_inercia_kg",
+    48: "categoria_proconve",
+    49: "lcvm",
+    50: "nome_homologado",
+    52: "bateria_kwh",
     # alvos (valores corrigidos = os publicados na etiqueta)
-    60: "kml_etanol_urbano", 61: "kml_gasolina_urbano",
-    62: "kml_etanol_estrada", 63: "kml_gasolina_estrada",
-    64: "kml_diesel_urbano", 65: "kml_diesel_estrada",
-    66: "kml_eletrico_eq_urbano", 67: "kml_eletrico_eq_estrada",
-    70: "mj_km_urbano", 71: "mj_km_estrada", 72: "mj_km",
+    60: "kml_etanol_urbano",
+    61: "kml_gasolina_urbano",
+    62: "kml_etanol_estrada",
+    63: "kml_gasolina_estrada",
+    64: "kml_diesel_urbano",
+    65: "kml_diesel_estrada",
+    66: "kml_eletrico_eq_urbano",
+    67: "kml_eletrico_eq_estrada",
+    70: "mj_km_urbano",
+    71: "mj_km_estrada",
+    72: "mj_km",
 }
 ALVOS = [c for c in COLUNAS.values() if c.startswith(("kml_", "mj_km"))]
-FEATURES = ["propulsao", "combustivel", "categoria", "categoria_proconve", "marca",
-            "massa_om_kg", "classe_inercia_kg", "pbt_kg", "f0_n", "f2_n_kmh2", "area_m2",
-            "potencia_kw", "cilindrada_cm3", "transmissao", "n_marchas", "direcao", "bateria_kwh"]
+FEATURES = [
+    "propulsao",
+    "combustivel",
+    "categoria",
+    "categoria_proconve",
+    "marca",
+    "massa_om_kg",
+    "classe_inercia_kg",
+    "pbt_kg",
+    "f0_n",
+    "f2_n_kmh2",
+    "area_m2",
+    "potencia_kw",
+    "cilindrada_cm3",
+    "transmissao",
+    "n_marchas",
+    "direcao",
+    "bateria_kwh",
+]
 CV_PARA_KW = 0.7355
 
 
 def ler_aba(caminho, aba=ABA):
     """Retorna dict {linha: {coluna: valor}} com os valores em cache do Excel."""
     z = zipfile.ZipFile(caminho)
-    shared = [''.join(t.text or '' for t in si.iter(NS + "t"))
-              for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall(NS + "si")]
+    shared = [
+        "".join(t.text or "" for t in si.iter(NS + "t"))
+        for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall(NS + "si")
+    ]
     linhas = {}
     for _, el in ET.iterparse(z.open(aba)):
         if el.tag != NS + "row":
@@ -58,7 +101,7 @@ def ler_aba(caminho, aba=ABA):
         for c in el.findall(NS + "c"):
             v, t = c.find(NS + "v"), c.get("t")
             if t == "inlineStr":
-                vals[_col(c.get("r"))] = ''.join(e.text or '' for e in c.iter(NS + "t"))
+                vals[_col(c.get("r"))] = "".join(e.text or "" for e in c.iter(NS + "t"))
             elif v is not None:
                 vals[_col(c.get("r"))] = shared[int(v.text)] if t == "s" else v.text
         linhas[int(el.get("r"))] = vals
@@ -150,8 +193,13 @@ def grupo_cv(marca, modelo):
 
 def limpar(caminho=ENTRADA):
     linhas = ler_aba(caminho)
-    df = pd.DataFrame([{nome: linhas[r].get(i) for i, nome in COLUNAS.items()}
-                       for r in sorted(linhas) if r > 1 and linhas[r].get(5) and linhas[r].get(6)])
+    df = pd.DataFrame(
+        [
+            {nome: linhas[r].get(i) for i, nome in COLUNAS.items()}
+            for r in sorted(linhas)
+            if r > 1 and linhas[r].get(5) and linhas[r].get(6)
+        ]
+    )
     n_bruto = len(df)
     txt = lambda c: df[c].fillna("").astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
 
@@ -160,19 +208,36 @@ def limpar(caminho=ENTRADA):
     df["versao"] = txt("versao")
     df["propulsao"] = txt("propulsao").map(padronizar_propulsao)
     df["combustivel"] = txt("combustivel").map({"G": "gasolina", "F": "flex", "D": "diesel", "E": "eletrico"})
-    df["direcao"] = txt("direcao").map({"E": "eletrica", "Elétrica": "eletrica", "H": "hidraulica", "E-H": "eletro-hidraulica"})
-    df["nacional_importado"] = txt("nacional_importado").map(lambda s: {"I": "importado", "N": "nacional"}.get(s, "ambos"))
+    df["direcao"] = txt("direcao").map(
+        {"E": "eletrica", "Elétrica": "eletrica", "H": "hidraulica", "E-H": "eletro-hidraulica"}
+    )
+    df["nacional_importado"] = txt("nacional_importado").map(
+        lambda s: {"I": "importado", "N": "nacional"}.get(s, "ambos")
+    )
     df["acima_limite_vendas"] = txt("acima_limite_vendas").eq("S")
     df["categoria_proconve"] = txt("categoria_proconve").where(lambda s: s.str.match(r"^(PL|CL\d?)$"))
 
-    for c in ["area_m2", "massa_om_kg", "f0_n", "f2_n_kmh2", "pbt_kg", "classe_inercia_kg", "bateria_kwh", *ALVOS]:
+    for c in [
+        "area_m2",
+        "massa_om_kg",
+        "f0_n",
+        "f2_n_kmh2",
+        "pbt_kg",
+        "classe_inercia_kg",
+        "bateria_kwh",
+        *ALVOS,
+    ]:
         df[c] = df[c].map(num)
 
     df["potencia_kw"] = [potencia_kw(p, m) for p, m in zip(df["potencia_txt"], df["marca"])]
-    df[["transmissao", "n_marchas"]] = [transmissao(t, p) for t, p in zip(df["transmissao_txt"], df["propulsao"])]
+    df[["transmissao", "n_marchas"]] = [
+        transmissao(t, p) for t, p in zip(df["transmissao_txt"], df["propulsao"])
+    ]
 
     cil = df["cilindrada_txt"].fillna("").astype(str).str.strip()
-    cil = cil.where(~cil.str.fullmatch(r"\d\.\d{3}"), cil.str.replace(".", "", regex=False))  # "1.798" -> 1798
+    cil = cil.where(
+        ~cil.str.fullmatch(r"\d\.\d{3}"), cil.str.replace(".", "", regex=False)
+    )  # "1.798" -> 1798
     df["cilindrada_cm3"] = cil.map(num)
     # cilindrada vazia: usa a do nome do motor ("2.0-16V" -> 2000), ex.: GAC GS4 híbrido
     litros = txt("motor").str.extract(r"(\d\.\d)", expand=False).map(num) * 1000
@@ -185,7 +250,7 @@ def limpar(caminho=ENTRADA):
 
     # F2 declarado em N/(m/s)² em vez de N/(km/h)²: converte (÷3,6²). Confirmado pelo PRR80 da Oroch.
     f2_corrigido = df["f2_n_kmh2"] > 0.12
-    df.loc[f2_corrigido, "f2_n_kmh2"] /= 3.6 ** 2
+    df.loc[f2_corrigido, "f2_n_kmh2"] /= 3.6**2
 
     # sem F0/F2/massa/alvo não dá para usar a linha
     essenciais = ["f0_n", "f2_n_kmh2", "massa_om_kg", "mj_km"]
@@ -197,11 +262,15 @@ def limpar(caminho=ENTRADA):
     # uma linha por homologação: versões com dados técnicos idênticos viram uma só.
     # marca fica fora da chave: vans Stellantis (Jumper/Ducato/Boxer etc.) são o mesmo ensaio em 3 marcas.
     chave = [c for c in FEATURES + ALVOS if c != "marca"]
-    chave_txt = df[chave].round(4).astype(str).agg("|".join, axis=1)
+    # map(str), não astype(str): pandas 3 mantém NaN no astype e o join quebra
+    chave_txt = df[chave].round(4).map(str).agg("|".join, axis=1)
     agrupado = df.groupby(chave_txt, sort=False)
     limpo = agrupado.first()[["lcvm", "nome_homologado", "marca", "modelo", *chave, "bateria_estimada"]]
-    limpo["versoes"] = agrupado.apply(lambda g: "; ".join(dict.fromkeys(
-        f"{ma} {m} {v}".strip() for ma, m, v in zip(g["marca"], g["modelo"], g["versao"]))))
+    limpo["versoes"] = agrupado.apply(
+        lambda g: "; ".join(
+            dict.fromkeys(f"{ma} {m} {v}".strip() for ma, m, v in zip(g["marca"], g["modelo"], g["versao"]))
+        )
+    )
     limpo["n_versoes"] = agrupado.size()
     limpo["grupo_cv"] = [grupo_cv(ma, mo) for ma, mo in zip(limpo["marca"], limpo["modelo"])]
     limpo = limpo.reset_index(drop=True)
@@ -229,8 +298,13 @@ def completar_baterias(df, caminho=COMPLEMENTO_BATERIAS):
     if caminho.exists():
         comp = pd.read_csv(caminho)
         comp = comp[comp["bateria_kwh"].notna()]
-        df = df.merge(comp[CHAVE_COMPLEMENTO + ["bateria_kwh", "confianca"]], on=CHAVE_COMPLEMENTO,
-                      how="left", suffixes=("", "_comp"), validate="many_to_one")
+        df = df.merge(
+            comp[CHAVE_COMPLEMENTO + ["bateria_kwh", "confianca"]],
+            on=CHAVE_COMPLEMENTO,
+            how="left",
+            suffixes=("", "_comp"),
+            validate="many_to_one",
+        )
         usar = df["bateria_kwh"].isna() & df["bateria_kwh_comp"].notna()
         df.loc[usar, "bateria_kwh"] = df.loc[usar, "bateria_kwh_comp"]
         df.loc[usar & df["confianca"].eq("baixa"), "bateria_estimada"] = True
@@ -259,7 +333,7 @@ def checar(df):
     assert (df.loc[df["propulsao"].ne("Combustão"), "bateria_kwh"] > 0).all()
     assert df["lcvm"].dropna().str.fullmatch(LCVM_VALIDO).all()
     tecnico = [c for c in FEATURES + ALVOS if c != "marca"]
-    assert not df[tecnico].round(4).astype(str).duplicated().any(), "homologação repetida"
+    assert not df[tecnico].round(4).map(str).duplicated().any(), "homologação repetida"
     assert np.allclose(df["mj_km"], 0.55 * df["mj_km_urbano"] + 0.45 * df["mj_km_estrada"], atol=1e-6)
     pw = df["potencia_kw"].dropna()
     assert pw.between(30, 1000).all(), f"potência estranha: {pw[~pw.between(30, 1000)].tolist()}"
@@ -272,18 +346,26 @@ def checar(df):
     assert potencia_kw("58,8 kW", "HYUNDAI") == 58.8
     assert transmissao("A - 6", "Combustão") == ("automatica", 6.0)
     assert transmissao("N.A.", "Elétrico") == ("direta", 1.0)
-    assert grupo_cv("TOYOTA", "HILUX DIESEL 4X4 AT") == grupo_cv("TOYOTA", "Hilux Diesel 4x4 MT") == "TOYOTA HILUX"
+    assert (
+        grupo_cv("TOYOTA", "HILUX DIESEL 4X4 AT")
+        == grupo_cv("TOYOTA", "Hilux Diesel 4x4 MT")
+        == "TOYOTA HILUX"
+    )
     assert grupo_cv("HONDA", "HR-V (mod. 26)") == "HONDA HR-V"
     assert grupo_cv("CHEVROLET", "ONIX PLUS") != grupo_cv("CHEVROLET", "ONIX")
 
 
-if __name__ == "__main__":
+def salvar(df, saida=SAIDA):
+    saida.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(saida, index=False, encoding="utf-8")
+
+
+def main():
     entrada = Path(sys.argv[1]) if len(sys.argv) > 1 else ENTRADA
     saida = Path(sys.argv[2]) if len(sys.argv) > 2 else SAIDA
     df, rel = limpar(entrada)
     checar(df)
-    saida.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(saida, index=False, encoding="utf-8")
+    salvar(df, saida)
     for k, v in rel.items():
         print(f"{k}: {v}")
     print(f"salvo em {saida}")
