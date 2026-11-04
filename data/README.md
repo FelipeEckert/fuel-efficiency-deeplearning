@@ -3,7 +3,7 @@
 ```
 data/
   raw/        planilhas originais (não editar) + complemento_baterias.csv
-  processed/  pbev_2026_limpo.csv — gerado por scripts/limpar_pbev.py
+  processed/  pbev_2026_limpo.csv — gerado por eficiencia.dados (comando abaixo)
 ```
 
 `raw/complemento_baterias.csv`: capacidade de bateria pesquisada em fontes públicas (nov/2026)
@@ -11,7 +11,7 @@ para os veículos em que o PBEV não informa. Uma linha por marca + modelo + pot
 com link da fonte, tipo de capacidade e confiança (alta / media / baixa / sem_fonte).
 Só preenche lacunas — nunca sobrescreve o PBEV.
 
-Para regenerar: `python scripts/limpar_pbev.py`
+Para regenerar: `uv run eficiencia-limpar`
 
 ## Origem
 
