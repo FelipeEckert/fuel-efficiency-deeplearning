@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -45,3 +47,16 @@ def test_varias_linhas_mantem_indice_original(pacote_rapido):
         prever(df, pacote_rapido)
     r = prever(df.iloc[[0]], pacote_rapido)
     assert list(r.index) == [10]
+
+
+def test_quantil_grande_nao_gera_faixa_invalida(pacote_rapido):
+    quantis = {p: {s: 1.5 for s in d} for p, d in pacote_rapido.quantis.items()}
+    pacote = replace(pacote_rapido, quantis=quantis)
+    df = pd.DataFrame([veiculo(), veiculo(propulsao="Elétrico", combustivel="eletrico", bateria_kwh=100)])
+    r = prever(df, pacote)
+    for coluna in r.columns:
+        if coluna.endswith(("_min", "_max")):
+            valores = r[coluna].to_numpy(dtype=float)
+            assert np.all(np.isnan(valores) | ((valores > 0) & np.isfinite(valores))), coluna
+    assert np.isnan(r["mj_km_min"].iloc[0]) and r["mj_km_max"].iloc[0] > r["mj_km"].iloc[0]
+    assert np.isnan(r["kml_eletrico_eq_urbano_max"].iloc[1])

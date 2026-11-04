@@ -3,6 +3,7 @@
 import math
 import unicodedata
 
+import numpy as np
 import pandas as pd
 
 from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES
@@ -37,6 +38,8 @@ def _vazio(valor) -> bool:
 
 
 def _numero(valor) -> float | None:
+    if isinstance(valor, (bool, np.bool_)):  # True viraria 1.0 sem ser um número digitado
+        return None
     if isinstance(valor, str):
         valor = valor.strip().replace(",", ".")
     try:
@@ -80,6 +83,8 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
                 continue
             if coluna == "bateria_kwh":
                 obrigatorio = limpo.get("propulsao") not in (None, "Combustão")
+            elif coluna == "cilindrada_cm3":
+                obrigatorio = limpo.get("propulsao") not in (None, "Elétrico")
             else:
                 obrigatorio = coluna not in OPCIONAIS
             limpo[coluna], problema = _campo(coluna, bruto.get(coluna), obrigatorio)
@@ -90,6 +95,14 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
             problemas.append("Combustível deve ser eletrico para propulsão Elétrico")
         if comb == "eletrico" and prop is not None and prop != "Elétrico":
             problemas.append("Propulsão deve ser Elétrico para combustível eletrico")
+        # mínimos por propulsão; valor ausente já virou "obrigatório" (NaN ou None, não float positivo)
+        for campo, propulsoes in (
+            ("cilindrada_cm3", ("Combustão", "Híbrido", "Plug-in")),
+            ("bateria_kwh", ("Híbrido", "Plug-in", "Elétrico")),
+        ):
+            valor = limpo.get(campo)
+            if prop in propulsoes and isinstance(valor, float) and not math.isnan(valor) and valor <= 0:
+                problemas.append(f"{ROTULOS[campo]} deve ser maior que zero para propulsão {prop}")
         if prop == "Combustão":
             limpo["bateria_kwh"] = 0.0
         if prop == "Elétrico":

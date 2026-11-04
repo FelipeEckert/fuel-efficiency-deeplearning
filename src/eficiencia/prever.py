@@ -1,5 +1,6 @@
 """API pública de previsão: valida as entradas e devolve MJ/km, km/l e faixas de incerteza por combustível."""
 
+import math
 from collections.abc import Mapping
 from math import nan
 
@@ -27,6 +28,12 @@ def _quantil(pacote: Pacote, propulsao: str, saida: str) -> float:
     return max((q[saida] for q in pacote.quantis.values() if saida in q), default=nan)
 
 
+def _faixa(valor: float, q: float) -> tuple[float, float]:
+    """Faixa com q; com q ≥ 1 o mínimo cairia a zero ou abaixo, então vira NaN (nunca negativo nem inf)."""
+    minimo, maximo = aplicar(valor, q)
+    return (minimo if minimo > 0 else nan), (maximo if math.isfinite(maximo) else nan)
+
+
 def _saida(r: dict, nome: str, valor: float, faixa: tuple[float, float]) -> None:
     r[nome] = valor
     r[f"{nome}_min"], r[f"{nome}_max"] = faixa
@@ -38,11 +45,11 @@ def _registro(pacote: Pacote, veiculo: dict, previsto: dict) -> dict:
     r: dict = {"avisos": avisos(veiculo, pacote.faixas)}
 
     mj = {c: float(previsto[f"mj_km_{c}"]) for c in CICLOS}
-    faixa_mj = {c: aplicar(mj[c], _quantil(pacote, p, f"mj_km_{c}")) for c in CICLOS}
+    faixa_mj = {c: _faixa(mj[c], _quantil(pacote, p, f"mj_km_{c}")) for c in CICLOS}
     for c in CICLOS:
         _saida(r, f"mj_km_{c}", mj[c], faixa_mj[c])
     mj_total = combinar_mj(mj["urbano"], mj["estrada"])
-    _saida(r, "mj_km", mj_total, aplicar(mj_total, _quantil(pacote, p, "mj_km")))
+    _saida(r, "mj_km", mj_total, _faixa(mj_total, _quantil(pacote, p, "mj_km")))
 
     # gasolina e etanol: previstos pelo modelo, só onde o combustível se aplica
     for comb in ("gasolina", "etanol"):
@@ -50,9 +57,9 @@ def _registro(pacote: Pacote, veiculo: dict, previsto: dict) -> dict:
         for c in CICLOS:
             nome = f"kml_{comb}_{c}"
             km[c] = float(previsto[nome]) if comb in aplicaveis else nan
-            _saida(r, nome, km[c], aplicar(km[c], _quantil(pacote, p, nome)))
+            _saida(r, nome, km[c], _faixa(km[c], _quantil(pacote, p, nome)))
         total = combinar_kml(km["urbano"], km["estrada"])
-        _saida(r, f"kml_{comb}", total, aplicar(total, _quantil(pacote, p, f"kml_{comb}")))
+        _saida(r, f"kml_{comb}", total, _faixa(total, _quantil(pacote, p, f"kml_{comb}")))
 
     # eletrico_eq = kml_diesel com FATOR_ELETRICO; faixa do km/l = fator / faixa do MJ/km (inverte mín. e máx.)
     for comb, (fator_u, fator_e) in (

@@ -33,3 +33,24 @@ def test_coerencia_propulsao():
     assert any("Combustível" in e for e in erros)
     ok, _ = validar(pd.DataFrame([veiculo(propulsao="Combustão", bateria_kwh=60)]))
     assert ok.iloc[0]["bateria_kwh"] == 0
+
+
+def test_eletrico_dispensa_cilindrada():
+    ok, erros = validar(
+        pd.DataFrame(
+            [veiculo(propulsao="Elétrico", combustivel="eletrico", cilindrada_cm3=None, bateria_kwh=100)]
+        )
+    )
+    assert erros == [] and ok.iloc[0]["cilindrada_cm3"] == 0
+
+
+def test_booleano_nao_e_numero():
+    _, erros = validar(pd.DataFrame([veiculo(potencia_kw=True)]))
+    assert erros == ["linha 1: Potência (kW) não é número"]
+
+
+def test_minimos_por_propulsao():
+    _, erros = validar(pd.DataFrame([veiculo(propulsao="Combustão", cilindrada_cm3=0)]))
+    assert erros == ["linha 1: Cilindrada (cm³) deve ser maior que zero para propulsão Combustão"]
+    _, erros = validar(pd.DataFrame([veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=0)]))
+    assert erros == ["linha 1: Bateria (kWh) deve ser maior que zero para propulsão Plug-in"]
