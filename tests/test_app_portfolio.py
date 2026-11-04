@@ -57,3 +57,55 @@ def test_adicionar_veiculo_pelo_formulario(pacote_rapido):
     at.button(key="adicionar_veiculo").click().run()
     assert len(at.session_state["portfolio"]) == 1
     assert at.session_state["portfolio"].iloc[0]["nome"] == "Carro novo"
+    at.run()  # a linha adicionada não pode ser aplicada de novo pelo editor
+    assert len(at.session_state["portfolio_atual"]) == 1
+
+
+def test_edicao_sobrevive_a_trocar_de_pagina(pacote_rapido):
+    at = _pagina(_tabela([("Carro A", 100, 1.5)]))
+    at.session_state["portfolio_atual"] = _tabela([("Carro A", 100, 1.5), ("Carro B", 300, 2.0)])
+    del at.session_state["editor_0"]  # o widget some quando o usuário sai da página
+    at.run()
+    assert "1,88" in _metrica(at, "MJ/km médio do portfólio").value
+    assert len(at.session_state["portfolio_atual"]) == 2
+
+
+def test_valor_fora_das_opcoes_e_reportado(pacote_rapido):
+    df = _tabela([("Carro A", 100, 1.5)])
+    df.loc[0, "categoria"] = "XYZ"
+    at = _pagina(df)
+    assert not at.exception
+    assert any("linha 1" in erro.value for erro in at.error)
+
+
+def test_sem_modelo_calcula_so_linhas_conhecidas(pacote_rapido, monkeypatch):
+    import formulario
+
+    def sem_modelo():
+        raise FileNotFoundError("sem modelo")
+
+    monkeypatch.setattr(formulario, "modelo", sem_modelo)
+    df = _tabela([("A", 100, 1.5), ("B", 300, np.nan), ("C", 200, 2.0), ("D", 100, np.nan), ("E", 0, 1.0)])
+    at = _pagina(df)
+    assert not at.exception
+    assert any("Sem modelo" in i.value for i in at.info)
+    assert _metrica(at, "MJ/km médio do portfólio").value == "1,83 MJ/km"
+    erros = [e.value for e in at.error]
+    assert any(e.startswith("linha 2:") for e in erros)
+    assert any(e.startswith("linha 4:") for e in erros)
+    assert any(e.startswith("linha 5:") for e in erros)  # volume zero, número da linha na tabela inteira
+
+
+def test_sem_modelo_sem_linhas_conhecidas_nao_quebra(pacote_rapido, monkeypatch):
+    import formulario
+
+    def sem_modelo():
+        raise FileNotFoundError("sem modelo")
+
+    monkeypatch.setattr(formulario, "modelo", sem_modelo)
+    at = _pagina(_tabela([("B", 300, np.nan)]))
+    assert not at.exception
+    assert _metrica(at, "MJ/km médio do portfólio").value == "—"
+    assert any(e.value.startswith("linha 1:") for e in at.error)
+    at = _pagina()
+    assert not at.exception

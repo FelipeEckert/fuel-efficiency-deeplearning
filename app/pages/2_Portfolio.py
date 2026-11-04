@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 from formulario import CATEGORIAS, formulario_veiculo, modelo
 
+from eficiencia.esquema import CATEGORICAS, VALORES
 from eficiencia.formato import numero
 from eficiencia.portfolio import (
     COLUNAS_PORTFOLIO,
@@ -27,16 +28,19 @@ ORIGEM = {"real": "Real", "estimado": "Estimado"}
 
 
 def _para_editor(df: pd.DataFrame) -> pd.DataFrame:
-    """Volume como texto: assim o "10.000" digitado no editor não vira número."""
+    """Tipos que o editor aceita: volume e categóricas como texto (o "10.000" digitado não vira número)."""
     df = df.copy()
     texto = [v if isinstance(v, str) else "" if pd.isna(v) else numero(v) for v in df["volume"]]
     df["volume"] = pd.Series(texto, index=df.index, dtype="string")  # tipo texto mesmo sem linhas
+    for coluna in CATEGORICAS:
+        df[coluna] = df[coluna].astype("string")
     return df
 
 
 def _atualizar(df: pd.DataFrame) -> None:
     """Troca a tabela e recria o editor, descartando as edições pendentes dele."""
     st.session_state["portfolio"] = df
+    st.session_state["portfolio_atual"] = df
     st.session_state["versao_editor"] += 1
 
 
@@ -59,6 +63,12 @@ def _adicionar(nome: str, volume: float, veiculo: dict) -> None:
 
 def _colunas() -> dict:
     colunas = {c: st.column_config.Column(ROTULOS_PORTFOLIO[c]) for c in COLUNAS_PORTFOLIO}
+    codigos = "Códigos: " + "; ".join(f"{k} = {v}" for k, v in CATEGORIAS.items())
+    for coluna in CATEGORICAS:
+        ajuda = codigos if coluna == "categoria" else None
+        colunas[coluna] = st.column_config.SelectboxColumn(
+            ROTULOS_PORTFOLIO[coluna], options=VALORES[coluna], help=ajuda
+        )
     colunas["volume"] = st.column_config.TextColumn(ROTULOS_PORTFOLIO["volume"])
     colunas["mj_km_conhecido"] = st.column_config.NumberColumn(
         ROTULOS_PORTFOLIO["mj_km_conhecido"], min_value=0.0, format="%.2f"
@@ -122,7 +132,13 @@ st.set_page_config(page_title="Portfólio", layout="wide")
 st.title("Portfólio")
 st.caption("MJ/km médio dos veículos, ponderado pelo volume de vendas de cada um.")
 st.session_state.setdefault("portfolio", pd.DataFrame(columns=COLUNAS_PORTFOLIO))
+st.session_state.setdefault("portfolio_atual", st.session_state["portfolio"])  # última tabela editada
 st.session_state.setdefault("versao_editor", 0)
+chave_editor = f"editor_{st.session_state['versao_editor']}"
+if (
+    chave_editor not in st.session_state
+):  # o editor não estava na tela (outra página ou primeira vez): retoma a edição
+    st.session_state["portfolio"] = st.session_state["portfolio_atual"]
 
 try:
     pacote = modelo()
@@ -135,7 +151,7 @@ topo = st.container()  # resultado aparece acima da tabela, mas é calculado com
 st.subheader("Veículos")
 editado = st.data_editor(
     _para_editor(st.session_state["portfolio"]),
-    key=f"editor_{st.session_state['versao_editor']}",
+    key=chave_editor,
     num_rows="dynamic",
     hide_index=True,
     column_config=_colunas(),
