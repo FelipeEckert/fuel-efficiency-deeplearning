@@ -47,7 +47,11 @@ def _mlp_livre(d_entrada: int, d_saida: int, camadas: int, largura: int, dropout
 
 
 class _MlpPositivo(nn.Module):
-    """Peso efetivo softplus(w) >= 0, sem viés, ReLU entre camadas: não decrescente em cada entrada."""
+    """Peso efetivo softplus(w) >= 0 e viés livre: não decrescente em cada entrada.
+
+    Entre camadas, metade dos neurônios usa ReLU (convexa) e metade -ReLU(-x) (côncava). Com só ReLU,
+    a rede seria convexa nas entradas monótonas; a mistura permite curvas que crescem cada vez menos.
+    """
 
     def __init__(self, d_entrada: int, d_saida: int, camadas: int, largura: int) -> None:
         super().__init__()
@@ -57,13 +61,15 @@ class _MlpPositivo(nn.Module):
             nn.Parameter(math.log(math.expm1(1 / din)) + 0.1 * torch.randn(dout, din))
             for din, dout in itertools.pairwise(dims)
         )
+        self.vies = nn.ParameterList(nn.Parameter(torch.zeros(dout)) for dout in dims[1:])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         ultima = len(self.pesos) - 1
-        for i, w in enumerate(self.pesos):
-            x = x @ F.softplus(w).T
+        for i, (w, b) in enumerate(zip(self.pesos, self.vies, strict=True)):
+            x = x @ F.softplus(w).T + b
             if i < ultima:
-                x = torch.relu(x)
+                metade = x.shape[1] // 2
+                x = torch.cat([torch.relu(x[:, :metade]), -torch.relu(-x[:, metade:])], dim=1)
         return x
 
 
@@ -181,6 +187,7 @@ class _EstimadorMlp:
 
 
 class RedePorAlvo(CandidatoPorAlvo):
+    VERSAO: ClassVar[int] = 2  # 2: viés e ativação côncava na parte monótona
     nome = "rede_por_alvo"
     PARAMS_RAPIDOS: ClassVar[dict] = {"max_epocas": 5}
     sugerir = staticmethod(_sugerir_mlp)
@@ -190,6 +197,7 @@ class RedePorAlvo(CandidatoPorAlvo):
 
 
 class RedeMulti(Candidato):
+    VERSAO: ClassVar[int] = 2  # 2: viés e ativação côncava na parte monótona
     nome = "rede_multi"
     PARAMS_RAPIDOS: ClassVar[dict] = {"max_epocas": 5}
     sugerir = staticmethod(_sugerir_mlp)

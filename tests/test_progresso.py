@@ -30,6 +30,8 @@ def test_progresso_por_modelo(banco):
     _estudo(banco, "linear-abc-i3-s0-final", [0.06, 0.09, 0.10], abandonada=True)  # passa da meta: conta só 2
     _estudo(banco, "xgboost-abc-e5-i3-s0-ext0", [0.05], rodando=True)
     _estudo(banco, "xgboost-velho-e5-i3-s0-ext0", [0.01])  # outra base: ignorado
+    _estudo(banco, "rede_multi-abc-e5-i3-s0-ext0", [0.01])  # arquitetura antiga da rede: ignorado
+    _estudo(banco, "rede_por_alvo-abc-v2-e5-i3-s0-ext0", [0.02])
 
     linhas = {linha["modelo"]: linha for linha in progresso(banco.url, meta=2, h="abc")}
 
@@ -43,6 +45,8 @@ def test_progresso_por_modelo(banco):
     assert linhas["xgboost"]["feitas"] == 1
     assert linhas["xgboost"]["melhor"] == 0.05
     assert linhas["xgboost"]["situacao"] == "em treino"
+    assert linhas["rede_multi"]["feitas"] == 0
+    assert linhas["rede_por_alvo"]["feitas"] == 1
     assert linhas["floresta"] == {
         "modelo": "floresta",
         "feitas": 0,

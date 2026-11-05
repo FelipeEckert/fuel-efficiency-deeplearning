@@ -21,7 +21,7 @@ from eficiencia.formato import numero
 from eficiencia.incerteza import calcular_quantis
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.monotonia import checar_monotonia
-from eficiencia.validacao import buscar_params, cv_aninhada, hash8
+from eficiencia.validacao import buscar_params, cv_aninhada, hash8, prefixo_estudo
 
 PASTA_RELATORIOS = RAIZ / "relatorios"
 STORAGE = f"sqlite:///{(RAIZ / 'optuna' / 'estudos.db').as_posix()}"
@@ -72,7 +72,7 @@ def treinar(
             rapido=rapido,
             semente=SEMENTE,
         )
-        nome_final = f"{nome}-{h}-i{n_internas}-s{SEMENTE}-final"
+        nome_final = f"{prefixo_estudo(nome, h)}-i{n_internas}-s{SEMENTE}-final"
         p = buscar_params(
             nome,
             df,
