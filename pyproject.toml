@@ -21,6 +21,7 @@ dependencies = [
 [project.scripts]
 eficiencia-limpar = "eficiencia.dados:main"
 eficiencia-treinar = "eficiencia.treino:main"
+eficiencia-progresso = "eficiencia.progresso:main"
 
 [build-system]
 requires = ["hatchling"]
