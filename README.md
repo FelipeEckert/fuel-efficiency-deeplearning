@@ -35,7 +35,8 @@ uv run eficiencia-treinar --tentativas 50
 
 - Nas noites seguintes, atualize o código com `git -C ../fuel_treino pull` e rode o treino de novo com um `--tentativas` maior (100, depois 150...). Cada estudo continua de onde parou até chegar ao novo total.
 - Impeça o Windows de suspender a máquina: Configurações → Sistema → Energia → Suspender: Nunca (na tomada).
-- Acompanhe o progresso com `uv run optuna-dashboard sqlite:///optuna/estudos.db` (dentro de `../fuel_treino`), em http://localhost:8080.
+- Acompanhe o progresso com `uv run eficiencia-progresso --tentativas 100` (dentro de `../fuel_treino`, com o mesmo número passado ao treino). Ele mostra, para cada modelo, quantas tentativas já foram feitas, o melhor erro e se o modelo está em treino. O "melhor na busca" vem da validação interna e sai um pouco mais otimista que o erro do relatório.
+- Para ver os gráficos de cada estudo, use `uv run optuna-dashboard sqlite:///optuna/estudos.db` e abra http://localhost:8080.
 
 Para o app usar o modelo treinado, há duas opções:
 
