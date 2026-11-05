@@ -35,3 +35,20 @@ def test_cv_rapida_rede(nome):
         nome, carregar_base(), n_tentativas=2, storage=None, n_externas=2, n_internas=2, rapido=True
     )
     assert np.isfinite(r.erro_mj)
+
+
+def test_parte_monotona_cresce_e_nao_e_so_convexa():
+    import torch
+
+    from eficiencia.modelos.rede import _MlpPositivo
+
+    torch.manual_seed(0)
+    m = _MlpPositivo(1, 1, camadas=2, largura=16)
+    for b in m.vies:
+        torch.nn.init.normal_(b)  # espalha as dobras pela faixa
+    x = torch.linspace(-3, 3, 601).reshape(-1, 1)
+    with torch.no_grad():
+        y = m(x)[:, 0].numpy()
+    assert (np.diff(y) >= -1e-6).all()  # não decrescente
+    # com só ReLU e pesos positivos, a segunda diferença nunca seria negativa
+    assert (np.diff(y, 2) < -1e-6).any()

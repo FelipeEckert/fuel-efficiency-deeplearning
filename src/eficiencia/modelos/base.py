@@ -14,6 +14,8 @@ from eficiencia.preprocess import Preprocessador
 class Candidato(ABC):
     nome: str
     PARAMS_RAPIDOS: ClassVar[dict] = {}
+    # suba quando a arquitetura mudar: os estudos do Optuna da versão anterior deixam de ser retomados
+    VERSAO: ClassVar[int] = 1
 
     def __init__(self, semente: int = 0, **params) -> None:
         self.semente = semente

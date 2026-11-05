@@ -38,6 +38,12 @@ def hash8(df: pd.DataFrame) -> str:
     return hashlib.sha256(dados).hexdigest()[:8]
 
 
+def prefixo_estudo(nome: str, h: str) -> str:
+    """Início do nome dos estudos de um candidato nesta base; a versão 1 não leva sufixo, para manter os estudos já feitos."""
+    versao = CANDIDATOS[nome].VERSAO
+    return f"{nome}-{h}" if versao == 1 else f"{nome}-{h}-v{versao}"
+
+
 def _estudo(
     nome: str,
     df: pd.DataFrame,
@@ -129,7 +135,7 @@ def cv_aninhada(
     n_total = 0
     for k, (tr, te) in enumerate(dobras_por_grupo(df["grupo_cv"], n_externas, semente)):
         treino = df.iloc[tr]
-        nome_estudo = f"{nome}-{h}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
+        nome_estudo = f"{prefixo_estudo(nome, h)}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
         estudo = _estudo(nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente, rapido)
         n_total += len(estudo.trials)
         params = _params_finais(estudo, nome, rapido)

@@ -9,7 +9,7 @@ from eficiencia.esquema import carregar_base
 from eficiencia.formato import numero
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.treino import STORAGE
-from eficiencia.validacao import hash8
+from eficiencia.validacao import hash8, prefixo_estudo
 
 ESTUDOS_POR_MODELO = 6  # 5 dobras externas + o estudo final, como em treino.treinar
 
@@ -28,9 +28,11 @@ def progresso(storage: str, meta: int, h: str) -> list[dict]:
     banco = optuna.storages.RDBStorage(storage)
     try:
         estudos: dict[str, list] = {nome: [] for nome in CANDIDATOS}
+        prefixos = {nome: prefixo_estudo(nome, h) + "-" for nome in CANDIDATOS}
         for resumo in optuna.get_all_study_summaries(banco):
-            nome, hash_base = resumo.study_name.split("-")[:2]
-            if nome in estudos and hash_base == h:  # estudos de outra versão da base ficam de fora
+            # o prefixo deixa de fora estudos de outra base ou de outra versão do modelo
+            nome = resumo.study_name.split("-")[0]
+            if nome in prefixos and resumo.study_name.startswith(prefixos[nome]):
                 estudos[nome].append(optuna.load_study(study_name=resumo.study_name, storage=banco).trials)
     finally:
         banco.remove_session()
