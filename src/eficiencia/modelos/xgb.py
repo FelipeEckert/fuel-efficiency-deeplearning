@@ -30,3 +30,32 @@ class XGBoost(CandidatoPorAlvo):
             "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
             "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 10, log=True),
         }
+
+
+# (mínimo, máximo, escala_log): fonte única da faixa ampliada
+FAIXAS_AMPLO: dict[str, tuple[float, float, bool]] = {
+    "n_estimators": (200, 3000, False),
+    "max_depth": (2, 10, False),
+    "learning_rate": (0.005, 0.3, True),
+    "subsample": (0.4, 1.0, False),
+    "colsample_bytree": (0.2, 1.0, False),
+    "min_child_weight": (0, 20, False),
+    "reg_lambda": (1e-3, 100, True),
+}
+
+
+class XGBoostAmplo(XGBoost):
+    """XGBoost com faixa de busca ampliada; só para experimentos (fora de CANDIDATOS)."""
+
+    nome = "xgboost_amplo"
+
+    @staticmethod
+    def sugerir(trial: optuna.Trial) -> dict:
+        f = FAIXAS_AMPLO
+        inteiros = ("n_estimators", "max_depth", "min_child_weight")
+        return {
+            k: trial.suggest_int(k, int(lo), int(hi))
+            if k in inteiros
+            else trial.suggest_float(k, lo, hi, log=log)
+            for k, (lo, hi, log) in f.items()
+        }

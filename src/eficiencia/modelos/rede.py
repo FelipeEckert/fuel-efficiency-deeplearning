@@ -36,6 +36,25 @@ def _perda(previsto: torch.Tensor, alvo: torch.Tensor, mascara: torch.Tensor) ->
     return ((previsto - alvo) ** 2 * mascara).sum() / mascara.sum().clamp(min=1)
 
 
+def _separar_validacao(
+    n: int, grupos: np.ndarray | None, rng: np.random.Generator
+) -> tuple[np.ndarray, np.ndarray]:
+    """(validação, treino). Com grupos, grupos inteiros vão para a validação: irmãos não vazam."""
+    unicos = None if grupos is None else np.unique(grupos)
+    if unicos is None or len(unicos) < 2:
+        ordem = rng.permutation(n)
+        n_val = max(1, round(FRACAO_VALIDACAO * n))
+        return ordem[:n_val], ordem[n_val:]
+    escolhidos, n_val = [], 0
+    for g in rng.permutation(unicos)[:-1]:  # o último grupo sempre fica no treino
+        escolhidos.append(g)
+        n_val += int((grupos == g).sum())
+        if n_val >= FRACAO_VALIDACAO * n:
+            break
+    na_validacao = np.isin(grupos, escolhidos)
+    return np.flatnonzero(na_validacao), np.flatnonzero(~na_validacao)
+
+
 def _mlp_livre(d_entrada: int, d_saida: int, camadas: int, largura: int, dropout: float) -> nn.Sequential:
     blocos: list[nn.Module] = []
     d = d_entrada
@@ -94,7 +113,10 @@ class _RedeMonotona(nn.Module):
 
 
 class _Mlp:
-    """Rede monotônica com saídas padronizadas por coluna (média/desvio das linhas não NaN) e parada antecipada."""
+    """Rede monotônica com saídas padronizadas por coluna (média/desvio das linhas não NaN) e parada antecipada.
+
+    Com n_redes > 1, treina redes com sementes semente, semente+1, ... e prevê a média delas.
+    """
 
     def __init__(
         self,
@@ -108,6 +130,7 @@ class _Mlp:
         weight_decay: float = 1e-4,
         max_epocas: int = 500,
         tamanho_lote: int = 32,
+        n_redes: int = 1,
     ) -> None:
         self.semente = semente
         self.nomes = nomes or []
@@ -119,56 +142,69 @@ class _Mlp:
         self.weight_decay = weight_decay
         self.max_epocas = max_epocas
         self.tamanho_lote = tamanho_lote
+        self.n_redes = n_redes
 
     def _construir(self) -> _RedeMonotona:
         return _RedeMonotona(self.nomes, self.sinais, self.camadas, self.largura, self.dropout)
 
-    def fit(self, X: np.ndarray, Y: np.ndarray) -> Self:
-        """X: float32 (n, d); Y: float (n, k) com NaN onde o alvo não se aplica."""
-        torch.manual_seed(self.semente)
-        rng = np.random.default_rng(self.semente)
+    def fit(self, X: np.ndarray, Y: np.ndarray, grupos: np.ndarray | None = None) -> Self:
+        """X: float32 (n, d); Y: float (n, k) com NaN onde o alvo não se aplica; grupos: um rótulo por linha."""
         self.media = np.nanmean(Y, axis=0)
         desvio = np.nanstd(Y, axis=0)
         self.desvio = np.where(desvio > 0, desvio, 1.0)  # coluna constante não divide por zero
         presente = ~np.isnan(Y)
         Ys = np.where(presente, (Y - self.media) / self.desvio, 0.0).astype(np.float32)
+        self.redes, self.historicos = [], []
+        for i in range(self.n_redes):
+            rede, historico = self._treinar(X, Ys, presente, grupos, self.semente + i)
+            self.redes.append(rede)
+            self.historicos.append(historico)
+        return self
 
-        ordem = rng.permutation(len(X))
-        n_val = max(1, round(FRACAO_VALIDACAO * len(X)))
-        val, tr = ordem[:n_val], ordem[n_val:]
+    def _treinar(
+        self, X: np.ndarray, Ys: np.ndarray, presente: np.ndarray, grupos: np.ndarray | None, semente: int
+    ) -> tuple[_RedeMonotona, list[tuple[float, float]]]:
+        torch.manual_seed(semente)
+        rng = np.random.default_rng(semente)
+        val, tr = _separar_validacao(len(X), grupos, rng)
         Xt, Yt, Mt = (torch.as_tensor(a[tr], dtype=torch.float32) for a in (X, Ys, presente))
         Xv, Yv, Mv = (torch.as_tensor(a[val], dtype=torch.float32) for a in (X, Ys, presente))
 
-        self.rede = self._construir()
-        otimizador = torch.optim.Adam(self.rede.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        rede = self._construir()
+        otimizador = torch.optim.Adam(rede.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         # pesos iniciais como salvaguarda: restaurados se a validação nunca for finita e menor
         melhor, melhor_epoca = np.inf, 0
-        melhores_pesos = {k: v.clone() for k, v in self.rede.state_dict().items()}
+        melhores_pesos = {k: v.clone() for k, v in rede.state_dict().items()}
+        historico = []
         for epoca in range(self.max_epocas):
-            self.rede.train()
+            rede.train()
             perm = torch.as_tensor(rng.permutation(len(tr)))
+            perdas = []
             for i in range(0, len(tr), self.tamanho_lote):
                 idx = perm[i : i + self.tamanho_lote]
-                perda = _perda(self.rede(Xt[idx]), Yt[idx], Mt[idx])
+                perda = _perda(rede(Xt[idx]), Yt[idx], Mt[idx])
                 otimizador.zero_grad()
                 perda.backward()
                 otimizador.step()
-            self.rede.eval()
+                perdas.append(perda.item())
+            rede.eval()
             with torch.no_grad():
-                validacao = _perda(self.rede(Xv), Yv, Mv).item()
+                validacao = _perda(rede(Xv), Yv, Mv).item()
+            historico.append((float(np.mean(perdas)), validacao))
             if validacao < melhor:
                 melhor, melhor_epoca = validacao, epoca
-                melhores_pesos = {k: v.clone() for k, v in self.rede.state_dict().items()}
+                melhores_pesos = {k: v.clone() for k, v in rede.state_dict().items()}
             elif epoca - melhor_epoca >= PACIENCIA:
                 break
-        self.rede.load_state_dict(melhores_pesos)
-        self.rede.eval()
-        return self
+        rede.load_state_dict(melhores_pesos)
+        rede.eval()
+        return rede, historico
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Previsões nas unidades de Y (desfeita a padronização)."""
+        Xt = torch.as_tensor(X, dtype=torch.float32)
         with torch.no_grad():
-            z = self.rede(torch.as_tensor(X, dtype=torch.float32)).numpy()
+            z = np.mean([rede(Xt).numpy() for rede in self.redes], axis=0)
         return z * self.desvio + self.media
 
 
@@ -178,8 +214,8 @@ class _EstimadorMlp:
     def __init__(self, semente: int, nomes: list[str], alvo: str, **params) -> None:
         self.mlp = _Mlp(semente, nomes=nomes, sinais=[sinal_alvo(alvo)], **params)
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> Self:
-        self.mlp.fit(X, y.reshape(-1, 1))
+    def fit(self, X: np.ndarray, y: np.ndarray, grupos: np.ndarray | None = None) -> Self:
+        self.mlp.fit(X, y.reshape(-1, 1), grupos)
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
@@ -189,6 +225,7 @@ class _EstimadorMlp:
 class RedePorAlvo(CandidatoPorAlvo):
     VERSAO: ClassVar[int] = 2  # 2: viés e ativação côncava na parte monótona
     nome = "rede_por_alvo"
+    USA_GRUPOS: ClassVar[bool] = True
     PARAMS_RAPIDOS: ClassVar[dict] = {"max_epocas": 5}
     sugerir = staticmethod(_sugerir_mlp)
 
@@ -206,7 +243,8 @@ class RedeMulti(Candidato):
         self.prep = Preprocessador().fit(X)
         sinais = [sinal_alvo(alvo) for alvo in ALVOS]
         mlp = _Mlp(self.semente, nomes=self.prep.nomes, sinais=sinais, **self.params)
-        self.mlp = mlp.fit(self.prep.transform(X), np.log(Y[ALVOS].to_numpy()))
+        grupos = X["grupo_cv"].to_numpy() if "grupo_cv" in X else None
+        self.mlp = mlp.fit(self.prep.transform(X), np.log(Y[ALVOS].to_numpy()), grupos)
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:

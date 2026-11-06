@@ -3,11 +3,12 @@ from typing import ClassVar
 import numpy as np
 import optuna
 import pandas as pd
+import pytest
 
 from eficiencia.esquema import ALVOS, carregar_base
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.modelos.base import Candidato
-from eficiencia.validacao import buscar_params, cv_aninhada, dobras_por_grupo
+from eficiencia.validacao import buscar_params, cv_aninhada, cv_fixa, dobras_por_grupo
 
 
 def test_dobras_sem_vazamento():
@@ -71,3 +72,61 @@ def test_busca_rapida_treina_com_params_rapidos(monkeypatch):
     monkeypatch.setitem(CANDIDATOS, "falso", Falso)
     buscar_params("falso", carregar_base(), 2, None, "falso-rapido", n_dobras=2, rapido=True)
     assert registrados and all(p["max_epocas"] == 5 for p in registrados)
+
+
+@pytest.mark.filterwarnings("ignore::optuna.exceptions.ExperimentalWarning")
+@pytest.mark.parametrize("sampler", ["tpe", "random", "cmaes", "qmc", "gp"])
+def test_cv_com_cada_sampler(sampler):
+    r = cv_aninhada(
+        "xgboost",
+        carregar_base(),
+        n_tentativas=12 if sampler == "gp" else 3,  # o GP só sai da fase inicial (10) depois disso
+        storage=None,
+        n_externas=2,
+        n_internas=2,
+        rapido=True,
+        sampler=sampler,
+    )
+    assert np.isfinite(r.erro_mj)
+
+
+def test_nome_do_estudo_leva_o_sampler(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    df = carregar_base()
+    cv_aninhada("linear", df, n_tentativas=1, storage=storage, n_externas=2, n_internas=2, sampler="random")
+    cv_aninhada("linear", df, n_tentativas=1, storage=storage, n_externas=2, n_internas=2)
+    nomes = optuna.get_all_study_names(storage)
+    assert sum("-random-" in n for n in nomes) == 2
+    assert sum("-random-" not in n for n in nomes) == 2  # o TPE mantém o nome antigo
+
+
+def test_sampler_desconhecido():
+    with pytest.raises(ValueError, match="sampler desconhecido"):
+        cv_aninhada("linear", carregar_base(), 1, None, n_externas=2, n_internas=2, sampler="sa")
+
+
+def test_cv_fixa_linear():
+    r = cv_fixa("linear", carregar_base(), {"alpha": 1.0}, n_externas=2)
+    assert r.oof.notna()["mj_km_urbano"].all() and np.isfinite(r.erro_mj) and r.n_tentativas == 0
+
+
+def test_cv_fixa_semente_do_modelo_muda_so_o_modelo():
+    df, p = carregar_base(), {**CANDIDATOS["xgboost"].PARAMS_RAPIDOS, "subsample": 0.7}
+    a = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=0)
+    b = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=0)
+    c = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=1)
+    assert a.erro_mj == b.erro_mj and a.erro_mj != c.erro_mj
+
+
+def test_semente_sampler_muda_so_a_busca(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    df = carregar_base()
+    cv_aninhada("linear", df, n_tentativas=2, storage=storage, n_externas=2, n_internas=2)
+    cv_aninhada("linear", df, n_tentativas=2, storage=storage, n_externas=2, n_internas=2, semente_sampler=1)
+    nomes = optuna.get_all_study_names(storage)
+    com = sorted(n for n in nomes if "-ss1-" in n)
+    sem = sorted(n for n in nomes if "-ss" not in n)
+    assert len(com) == len(sem) == 2
+    a = optuna.load_study(study_name=sem[0], storage=storage).trials
+    b = optuna.load_study(study_name=com[0], storage=storage).trials
+    assert [t.params for t in a] != [t.params for t in b]

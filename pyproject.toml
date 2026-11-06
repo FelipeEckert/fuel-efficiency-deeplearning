@@ -10,6 +10,7 @@ dependencies = [
     "xgboost",
     "torch",
     "optuna",
+    "cmaes",
     "optuna-dashboard",
     "joblib",
     "streamlit",
@@ -22,6 +23,7 @@ dependencies = [
 eficiencia-limpar = "eficiencia.dados:main"
 eficiencia-treinar = "eficiencia.treino:main"
 eficiencia-progresso = "eficiencia.progresso:main"
+eficiencia-experimento = "eficiencia.experimentos:main"
 
 [build-system]
 requires = ["hatchling"]
