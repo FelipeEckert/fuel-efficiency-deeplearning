@@ -9,7 +9,7 @@ import pandas as pd
 
 from eficiencia.esquema import ALVOS, ENTRADAS
 from eficiencia.fisica import combinar_mj
-from eficiencia.modelos import CANDIDATOS
+from eficiencia.modelos import CANDIDATOS, EXPERIMENTAIS
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -48,7 +48,7 @@ def hash8(df: pd.DataFrame) -> str:
 
 def prefixo_estudo(nome: str, h: str) -> str:
     """Início do nome dos estudos de um candidato nesta base; a versão 1 não leva sufixo, para manter os estudos já feitos."""
-    versao = CANDIDATOS[nome].VERSAO
+    versao = (CANDIDATOS | EXPERIMENTAIS)[nome].VERSAO
     return f"{nome}-{h}" if versao == 1 else f"{nome}-{h}-v{versao}"
 
 
@@ -65,7 +65,7 @@ def _estudo(
 ) -> optuna.Study:
     if sampler not in SAMPLERS:
         raise ValueError(f"sampler desconhecido: {sampler}")
-    cls = CANDIDATOS[nome]
+    cls = (CANDIDATOS | EXPERIMENTAIS)[nome]
     estudo = optuna.create_study(
         study_name=nome_estudo,
         storage=storage,
@@ -100,7 +100,7 @@ def _estudo(
 def _params_finais(estudo: optuna.Study, nome: str, rapido: bool) -> dict:
     params = dict(estudo.best_params)
     if rapido:
-        params = {**params, **CANDIDATOS[nome].PARAMS_RAPIDOS}
+        params = {**params, **(CANDIDATOS | EXPERIMENTAIS)[nome].PARAMS_RAPIDOS}
     return params
 
 
@@ -161,7 +161,7 @@ def cv_aninhada(
     semente: int = 0,
     sampler: str = "tpe",
 ) -> ResultadoCV:
-    cls = CANDIDATOS[nome]
+    cls = (CANDIDATOS | EXPERIMENTAIS)[nome]
     h = hash8(df)
     oof = pd.DataFrame(np.nan, index=df.index, columns=ALVOS)
     params_por_dobra: list[dict] = []
@@ -194,7 +194,7 @@ def cv_fixa(
     colunas: list[str] = ENTRADAS,
 ) -> ResultadoCV:
     """CV externa sem busca: treina com os mesmos params em cada dobra (as dobras são as de cv_aninhada)."""
-    cls = CANDIDATOS[nome]
+    cls = (CANDIDATOS | EXPERIMENTAIS)[nome]
     oof = pd.DataFrame(np.nan, index=df.index, columns=ALVOS)
     for tr, te in dobras_por_grupo(df["grupo_cv"], n_externas, semente_dobras):
         modelo = cls(semente=semente_modelo, **params).fit(df.iloc[tr][colunas], df.iloc[tr][ALVOS])
