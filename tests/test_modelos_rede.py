@@ -100,3 +100,21 @@ def test_historico_e_media_de_redes():
     assert len(mlp.historicos) == 3 and all(len(h) == 5 for h in mlp.historicos)
     assert np.isfinite(m.predict(df[ENTRADAS]).values).all()
     assert checar_monotonia(m, df) == []
+
+
+@pytest.mark.parametrize("com_grupo", [True, False])
+def test_rede_por_alvo_passa_grupos_para_a_validacao(monkeypatch, com_grupo):
+    from eficiencia.modelos import rede
+
+    vistos = []
+    original = rede._separar_validacao
+
+    def espiao(n, grupos, rng):
+        vistos.append(grupos)
+        return original(n, grupos, rng)
+
+    monkeypatch.setattr(rede, "_separar_validacao", espiao)
+    df = carregar_base()
+    X = df[ENTRADAS + ["grupo_cv"]] if com_grupo else df[ENTRADAS]
+    CANDIDATOS["rede_por_alvo"](semente=1, max_epocas=2).fit(X, df[ALVOS])
+    assert vistos and all((g is not None) == com_grupo for g in vistos)

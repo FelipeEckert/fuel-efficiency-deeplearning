@@ -1,6 +1,7 @@
 import json
 
 import optuna
+import pytest
 
 from eficiencia import experimentos, treino
 from eficiencia.modelos import CANDIDATOS
@@ -60,3 +61,18 @@ def test_redes_rapido(tmp_path, monkeypatch):
     r = experimentos.experimento_redes(p, n=2, lrs=(1e-3,), rapido=True)
     assert {"linha_s0", "linha_s1", "grupo_s0", "grupo_s1", "media5", "lr_0.001"} <= set(r)
     assert (tmp_path / "rapido" / "curvas_perda.png").exists()
+
+
+def test_melhores_params_sem_banco_nao_cria_nada(tmp_path):
+    caminho = tmp_path / "optuna" / "estudos.db"
+    with pytest.raises(ValueError, match="banco não encontrado"):
+        experimentos.melhores_params("xgboost", storage=f"sqlite:///{caminho.as_posix()}")
+    assert not caminho.parent.exists()
+
+
+def test_melhores_params_pasta_sem_banco(tmp_path):
+    caminho = tmp_path / "optuna" / "estudos.db"
+    caminho.parent.mkdir()
+    with pytest.raises(ValueError, match="banco não encontrado"):
+        experimentos.melhores_params("xgboost", storage=f"sqlite:///{caminho.as_posix()}")
+    assert not caminho.exists()

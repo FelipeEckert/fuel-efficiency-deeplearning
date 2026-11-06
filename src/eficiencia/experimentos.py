@@ -1,4 +1,4 @@
-"""Experimentos de otimização do XGBoost. Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes}
+"""Experimentos de otimização dos modelos (XGBoost e redes). Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes}
 
 Nunca gravam em optuna/estudos.db: só leem de lá os parâmetros finais do treino oficial.
 """
@@ -6,6 +6,7 @@ Nunca gravam em optuna/estudos.db: só leem de lá os parâmetros finais do trei
 import argparse
 import json
 import math
+from pathlib import Path
 
 import numpy as np
 import optuna
@@ -45,6 +46,8 @@ def _com_storage(storage: str | None, f):
 
 def melhores_params(nome: str, storage: str = STORAGE) -> dict:
     """best_params do estudo final do treino oficial para esta base."""
+    if storage.startswith("sqlite:///") and not Path(storage.removeprefix("sqlite:///")).exists():
+        raise ValueError(f"banco não encontrado: {storage.removeprefix('sqlite:///')}")  # não cria um vazio
     nome_estudo = f"{prefixo_estudo(nome, hash8(carregar_base()))}-i3-s0-final"
 
     def ler(arm):
@@ -201,7 +204,7 @@ def experimento_redes(
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Experimentos de otimização do XGBoost.")
+    parser = argparse.ArgumentParser(description="Experimentos de otimização dos modelos (XGBoost e redes).")
     parser.add_argument("experimento", choices=["samplers", "cerca", "sementes", "redes"])
     parser.add_argument(
         "--tentativas", type=int, help="tentativas do Optuna (padrão: 50 samplers, 100 cerca)"

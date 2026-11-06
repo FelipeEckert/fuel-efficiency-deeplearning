@@ -7,3 +7,5 @@ optuna/
 *.db
 modelos/rapido/
 relatorios/rapido/
+relatorios/experimentos/rapido/
+relatorios/experimentos/*.log

@@ -387,7 +387,7 @@ Depende de: o PR das Tarefas 1–5b estar mergeado, o PR #22 (rodada 3) estar me
 
 ```powershell
 Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
-  CommandLine = 'cmd /c "cd /d C:\Users\Felip\Desktop\fuel_treino && uv run eficiencia-experimento sementes > relatorios\experimentos\sementes.log 2>&1 && uv run eficiencia-experimento redes > relatorios\experimentos\redes.log 2>&1 && uv run eficiencia-experimento cerca > relatorios\experimentos\cerca.log 2>&1 && uv run eficiencia-experimento samplers > relatorios\experimentos\samplers.log 2>&1"' }
+  CommandLine = 'cmd /c "cd /d C:\Users\Felip\Desktop\fuel_treino && if not exist relatorios\experimentos mkdir relatorios\experimentos && uv run eficiencia-experimento sementes > relatorios\experimentos\sementes.log 2>&1 && uv run eficiencia-experimento redes > relatorios\experimentos\redes.log 2>&1 && uv run eficiencia-experimento cerca > relatorios\experimentos\cerca.log 2>&1 && uv run eficiencia-experimento samplers > relatorios\experimentos\samplers.log 2>&1"' }
 ```
 
   Estimativa (baseada no tempo médio das tentativas no banco):

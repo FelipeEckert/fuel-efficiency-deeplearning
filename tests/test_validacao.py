@@ -80,7 +80,7 @@ def test_cv_com_cada_sampler(sampler):
     r = cv_aninhada(
         "xgboost",
         carregar_base(),
-        n_tentativas=3,
+        n_tentativas=12 if sampler == "gp" else 3,  # o GP só sai da fase inicial (10) depois disso
         storage=None,
         n_externas=2,
         n_internas=2,
