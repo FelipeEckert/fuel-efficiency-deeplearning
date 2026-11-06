@@ -116,3 +116,17 @@ def test_cv_fixa_semente_do_modelo_muda_so_o_modelo():
     b = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=0)
     c = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=1)
     assert a.erro_mj == b.erro_mj and a.erro_mj != c.erro_mj
+
+
+def test_semente_sampler_muda_so_a_busca(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    df = carregar_base()
+    cv_aninhada("linear", df, n_tentativas=2, storage=storage, n_externas=2, n_internas=2)
+    cv_aninhada("linear", df, n_tentativas=2, storage=storage, n_externas=2, n_internas=2, semente_sampler=1)
+    nomes = optuna.get_all_study_names(storage)
+    com = sorted(n for n in nomes if "-ss1-" in n)
+    sem = sorted(n for n in nomes if "-ss" not in n)
+    assert len(com) == len(sem) == 2
+    a = optuna.load_study(study_name=sem[0], storage=storage).trials
+    b = optuna.load_study(study_name=com[0], storage=storage).trials
+    assert [t.params for t in a] != [t.params for t in b]

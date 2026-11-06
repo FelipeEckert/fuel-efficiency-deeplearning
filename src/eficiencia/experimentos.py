@@ -91,12 +91,16 @@ def experimento_samplers(
     df = carregar_base()
 
     def rodar(arm):
-        return {
-            s: _resumo(
-                cv_aninhada("xgboost", df, n_tentativas, arm, rapido=rapido, sampler=s, **_dobras(rapido))
+        def cv(**kw):
+            return _resumo(
+                cv_aninhada("xgboost", df, n_tentativas, arm, rapido=rapido, **_dobras(rapido), **kw)
             )
-            for s in SAMPLERS
-        }
+
+        r = {s: cv(sampler=s) for s in SAMPLERS}
+        # mesmas dobras, só a semente do sampler muda: mede o ruído da busca (tpe já é a semente 0)
+        r |= {f"tpe_ss{k}": cv(semente_sampler=k) for k in (1, 2)}
+        tpes = [r["tpe"], r["tpe_ss1"], r["tpe_ss2"]]
+        return r | {"ruido_busca_tpe": {"erros": [x["erro_mj"] for x in tpes]} | _estatisticas(tpes)}
 
     resultado = _com_storage(storage, rodar)
     _gravar("samplers", resultado, rapido)

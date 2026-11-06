@@ -62,6 +62,7 @@ def _estudo(
     semente: int,
     rapido: bool = False,
     sampler: str = "tpe",
+    semente_sampler: int | None = None,
 ) -> optuna.Study:
     if sampler not in SAMPLERS:
         raise ValueError(f"sampler desconhecido: {sampler}")
@@ -74,7 +75,8 @@ def _estudo(
         load_if_exists=True,
     )
     # semente deslocada pelos trials já feitos: retomar não repete as mesmas amostras
-    estudo.sampler = SAMPLERS[sampler](seed=semente + len(estudo.trials))
+    base = semente if semente_sampler is None else semente_sampler  # as dobras seguem com `semente`
+    estudo.sampler = SAMPLERS[sampler](seed=base + len(estudo.trials))
     dobras = dobras_por_grupo(df["grupo_cv"], n_dobras, semente)
 
     def objetivo(trial: optuna.Trial) -> float:
@@ -160,6 +162,7 @@ def cv_aninhada(
     rapido: bool = False,
     semente: int = 0,
     sampler: str = "tpe",
+    semente_sampler: int | None = None,
 ) -> ResultadoCV:
     cls = (CANDIDATOS | EXPERIMENTAIS)[nome]
     h = hash8(df)
@@ -167,13 +170,24 @@ def cv_aninhada(
     params_por_dobra: list[dict] = []
     n_total = 0
     sufixo_sampler = "" if sampler == "tpe" else f"-{sampler}"  # o TPE mantém o nome antigo
+    if semente_sampler is not None:
+        sufixo_sampler += f"-ss{semente_sampler}"
     for k, (tr, te) in enumerate(dobras_por_grupo(df["grupo_cv"], n_externas, semente)):
         treino = df.iloc[tr]
         nome_estudo = (
             f"{prefixo_estudo(nome, h)}{sufixo_sampler}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
         )
         estudo = _estudo(
-            nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente, rapido, sampler
+            nome,
+            treino,
+            n_tentativas,
+            storage,
+            nome_estudo,
+            n_internas,
+            semente,
+            rapido,
+            sampler,
+            semente_sampler,
         )
         n_total += len(estudo.trials)
         params = _params_finais(estudo, nome, rapido)

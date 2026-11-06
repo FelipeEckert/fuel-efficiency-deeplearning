@@ -19,7 +19,9 @@ def test_na_borda_log():
 def test_samplers_rapido(tmp_path, monkeypatch):
     monkeypatch.setattr(experimentos, "PASTA_EXPERIMENTOS", tmp_path)
     r = experimentos.experimento_samplers(n_tentativas=2, storage=None, rapido=True)
-    assert set(r) == {"tpe", "random", "cmaes", "qmc", "gp"}
+    assert set(r) == set(experimentos.SAMPLERS) | {"tpe_ss1", "tpe_ss2", "ruido_busca_tpe"}
+    assert len(r["ruido_busca_tpe"]["erros"]) == 3
+    assert r["ruido_busca_tpe"]["desvio"] >= 0
     assert json.loads((tmp_path / "rapido" / "samplers.json").read_text(encoding="utf-8")) == r
 
 
