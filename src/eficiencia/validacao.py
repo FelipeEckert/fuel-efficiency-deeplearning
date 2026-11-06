@@ -130,6 +130,26 @@ class ResultadoCV:
     n_tentativas: int
 
 
+def _resultado(
+    nome: str, df: pd.DataFrame, oof: pd.DataFrame, params_por_dobra: list[dict], n_tentativas: int
+) -> ResultadoCV:
+    erro = erro_mj_combinado(df, oof)
+    erro_por_propulsao = pd.Series(erro, index=df["propulsao"].to_numpy()).groupby(level=0).mean()
+    erro_por_alvo = {
+        alvo: float(erro_percentual(df[alvo][df[alvo].notna()], oof[alvo][df[alvo].notna()]).mean())
+        for alvo in ALVOS
+    }
+    return ResultadoCV(
+        nome=nome,
+        oof=oof,
+        params_por_dobra=params_por_dobra,
+        erro_mj=float(erro.mean()),
+        erro_por_propulsao={str(p): float(e) for p, e in erro_por_propulsao.items()},
+        erro_por_alvo=erro_por_alvo,
+        n_tentativas=n_tentativas,
+    )
+
+
 def cv_aninhada(
     nome: str,
     df: pd.DataFrame,
@@ -161,18 +181,22 @@ def cv_aninhada(
         oof.iloc[te] = modelo.predict(df.iloc[te][ENTRADAS])[ALVOS].to_numpy()
         params_por_dobra.append(params)
 
-    erro = erro_mj_combinado(df, oof)
-    erro_por_propulsao = pd.Series(erro, index=df["propulsao"].to_numpy()).groupby(level=0).mean()
-    erro_por_alvo = {
-        alvo: float(erro_percentual(df[alvo][df[alvo].notna()], oof[alvo][df[alvo].notna()]).mean())
-        for alvo in ALVOS
-    }
-    return ResultadoCV(
-        nome=nome,
-        oof=oof,
-        params_por_dobra=params_por_dobra,
-        erro_mj=float(erro.mean()),
-        erro_por_propulsao={str(p): float(e) for p, e in erro_por_propulsao.items()},
-        erro_por_alvo=erro_por_alvo,
-        n_tentativas=n_total,
-    )
+    return _resultado(nome, df, oof, params_por_dobra, n_total)
+
+
+def cv_fixa(
+    nome: str,
+    df: pd.DataFrame,
+    params: dict,
+    n_externas: int = 5,
+    semente_dobras: int = 0,
+    semente_modelo: int = 0,
+    colunas: list[str] = ENTRADAS,
+) -> ResultadoCV:
+    """CV externa sem busca: treina com os mesmos params em cada dobra (as dobras são as de cv_aninhada)."""
+    cls = CANDIDATOS[nome]
+    oof = pd.DataFrame(np.nan, index=df.index, columns=ALVOS)
+    for tr, te in dobras_por_grupo(df["grupo_cv"], n_externas, semente_dobras):
+        modelo = cls(semente=semente_modelo, **params).fit(df.iloc[tr][colunas], df.iloc[tr][ALVOS])
+        oof.iloc[te] = modelo.predict(df.iloc[te][colunas])[ALVOS].to_numpy()
+    return _resultado(nome, df, oof, [params] * n_externas, 0)

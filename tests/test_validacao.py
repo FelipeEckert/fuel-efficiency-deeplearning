@@ -8,7 +8,7 @@ import pytest
 from eficiencia.esquema import ALVOS, carregar_base
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.modelos.base import Candidato
-from eficiencia.validacao import buscar_params, cv_aninhada, dobras_por_grupo
+from eficiencia.validacao import buscar_params, cv_aninhada, cv_fixa, dobras_por_grupo
 
 
 def test_dobras_sem_vazamento():
@@ -103,3 +103,16 @@ def test_nome_do_estudo_leva_o_sampler(tmp_path):
 def test_sampler_desconhecido():
     with pytest.raises(ValueError, match="sampler desconhecido"):
         cv_aninhada("linear", carregar_base(), 1, None, n_externas=2, n_internas=2, sampler="sa")
+
+
+def test_cv_fixa_linear():
+    r = cv_fixa("linear", carregar_base(), {"alpha": 1.0}, n_externas=2)
+    assert r.oof.notna()["mj_km_urbano"].all() and np.isfinite(r.erro_mj) and r.n_tentativas == 0
+
+
+def test_cv_fixa_semente_do_modelo_muda_so_o_modelo():
+    df, p = carregar_base(), {**CANDIDATOS["xgboost"].PARAMS_RAPIDOS, "subsample": 0.7}
+    a = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=0)
+    b = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=0)
+    c = cv_fixa("xgboost", df, p, n_externas=2, semente_modelo=1)
+    assert a.erro_mj == b.erro_mj and a.erro_mj != c.erro_mj
