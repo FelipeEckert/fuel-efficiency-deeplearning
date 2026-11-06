@@ -13,6 +13,14 @@ from eficiencia.modelos import CANDIDATOS
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
+SAMPLERS: dict[str, type[optuna.samplers.BaseSampler]] = {
+    "tpe": optuna.samplers.TPESampler,
+    "random": optuna.samplers.RandomSampler,
+    "cmaes": optuna.samplers.CmaEsSampler,
+    "qmc": optuna.samplers.QMCSampler,
+    "gp": optuna.samplers.GPSampler,
+}
+
 
 def erro_percentual(real, previsto) -> np.ndarray:
     return np.abs(np.asarray(previsto) / np.asarray(real) - 1)
@@ -53,7 +61,10 @@ def _estudo(
     n_dobras: int,
     semente: int,
     rapido: bool = False,
+    sampler: str = "tpe",
 ) -> optuna.Study:
+    if sampler not in SAMPLERS:
+        raise ValueError(f"sampler desconhecido: {sampler}")
     cls = CANDIDATOS[nome]
     estudo = optuna.create_study(
         study_name=nome_estudo,
@@ -63,7 +74,7 @@ def _estudo(
         load_if_exists=True,
     )
     # semente deslocada pelos trials já feitos: retomar não repete as mesmas amostras
-    estudo.sampler = optuna.samplers.TPESampler(seed=semente + len(estudo.trials))
+    estudo.sampler = SAMPLERS[sampler](seed=semente + len(estudo.trials))
     dobras = dobras_por_grupo(df["grupo_cv"], n_dobras, semente)
 
     def objetivo(trial: optuna.Trial) -> float:
@@ -102,8 +113,9 @@ def buscar_params(
     n_dobras: int = 3,
     rapido: bool = False,
     semente: int = 0,
+    sampler: str = "tpe",
 ) -> dict:
-    estudo = _estudo(nome, df, n_tentativas, storage, nome_estudo, n_dobras, semente, rapido)
+    estudo = _estudo(nome, df, n_tentativas, storage, nome_estudo, n_dobras, semente, rapido, sampler)
     return _params_finais(estudo, nome, rapido)
 
 
@@ -127,16 +139,22 @@ def cv_aninhada(
     n_internas: int = 3,
     rapido: bool = False,
     semente: int = 0,
+    sampler: str = "tpe",
 ) -> ResultadoCV:
     cls = CANDIDATOS[nome]
     h = hash8(df)
     oof = pd.DataFrame(np.nan, index=df.index, columns=ALVOS)
     params_por_dobra: list[dict] = []
     n_total = 0
+    sufixo_sampler = "" if sampler == "tpe" else f"-{sampler}"  # o TPE mantém o nome antigo
     for k, (tr, te) in enumerate(dobras_por_grupo(df["grupo_cv"], n_externas, semente)):
         treino = df.iloc[tr]
-        nome_estudo = f"{prefixo_estudo(nome, h)}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
-        estudo = _estudo(nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente, rapido)
+        nome_estudo = (
+            f"{prefixo_estudo(nome, h)}{sufixo_sampler}-e{n_externas}-i{n_internas}-s{semente}-ext{k}"
+        )
+        estudo = _estudo(
+            nome, treino, n_tentativas, storage, nome_estudo, n_internas, semente, rapido, sampler
+        )
         n_total += len(estudo.trials)
         params = _params_finais(estudo, nome, rapido)
         modelo = cls(semente=semente, **params).fit(treino[ENTRADAS], treino[ALVOS])

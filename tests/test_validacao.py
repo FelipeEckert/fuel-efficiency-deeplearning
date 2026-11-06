@@ -3,6 +3,7 @@ from typing import ClassVar
 import numpy as np
 import optuna
 import pandas as pd
+import pytest
 
 from eficiencia.esquema import ALVOS, carregar_base
 from eficiencia.modelos import CANDIDATOS
@@ -71,3 +72,34 @@ def test_busca_rapida_treina_com_params_rapidos(monkeypatch):
     monkeypatch.setitem(CANDIDATOS, "falso", Falso)
     buscar_params("falso", carregar_base(), 2, None, "falso-rapido", n_dobras=2, rapido=True)
     assert registrados and all(p["max_epocas"] == 5 for p in registrados)
+
+
+@pytest.mark.filterwarnings("ignore::optuna.exceptions.ExperimentalWarning")
+@pytest.mark.parametrize("sampler", ["tpe", "random", "cmaes", "qmc", "gp"])
+def test_cv_com_cada_sampler(sampler):
+    r = cv_aninhada(
+        "xgboost",
+        carregar_base(),
+        n_tentativas=3,
+        storage=None,
+        n_externas=2,
+        n_internas=2,
+        rapido=True,
+        sampler=sampler,
+    )
+    assert np.isfinite(r.erro_mj)
+
+
+def test_nome_do_estudo_leva_o_sampler(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    df = carregar_base()
+    cv_aninhada("linear", df, n_tentativas=1, storage=storage, n_externas=2, n_internas=2, sampler="random")
+    cv_aninhada("linear", df, n_tentativas=1, storage=storage, n_externas=2, n_internas=2)
+    nomes = optuna.get_all_study_names(storage)
+    assert sum("-random-" in n for n in nomes) == 2
+    assert sum("-random-" not in n for n in nomes) == 2  # o TPE mantém o nome antigo
+
+
+def test_sampler_desconhecido():
+    with pytest.raises(ValueError, match="sampler desconhecido"):
+        cv_aninhada("linear", carregar_base(), 1, None, n_externas=2, n_internas=2, sampler="sa")

@@ -10,6 +10,7 @@ dependencies = [
     "xgboost",
     "torch",
     "optuna",
+    "cmaes",
     "optuna-dashboard",
     "joblib",
     "streamlit",
