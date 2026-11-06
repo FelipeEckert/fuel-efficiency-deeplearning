@@ -358,7 +358,8 @@ def checar(df):
 
 def salvar(df, saida=SAIDA):
     saida.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(saida, index=False, encoding="utf-8")
+    # LF em qualquer sistema, igual ao arquivo versionado
+    df.to_csv(saida, index=False, encoding="utf-8", lineterminator="\n")
 
 
 def main():

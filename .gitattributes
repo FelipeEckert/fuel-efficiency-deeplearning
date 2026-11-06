@@ -1,0 +1,2 @@
+# a base limpa tem quebras de linha dentro das células: o Git não pode converter LF em CRLF
+*.csv -text
