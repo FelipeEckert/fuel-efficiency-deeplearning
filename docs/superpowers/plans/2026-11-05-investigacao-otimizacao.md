@@ -37,9 +37,9 @@ Análise do `estudos.db` (cópia de 2026-11-05, 11h):
 | H5 | As redes variam muito com a semente e a média de várias ajuda | `redes`: as 5 sementes acima, mais a média de 5 redes |
 | H6 | A taxa de aprendizado atrapalha | `redes`: grade fixa de `lr` |
 
-**Critério de decisão (decisão do autor do plano):** uma diferença só conta se for maior que 2 desvios-padrão entre sementes:
-- o desvio do H3 vale para o XGBoost;
-- o desvio das 5 sementes com validação por linha vale para as redes.
+**Critério de decisão:** uma diferença só conta se for maior que 2 desvios-padrão entre sementes:
+- XGBoost: são dois desvios. O de semente do modelo vem do H3. O de semente da busca vem do TPE com 3 sementes de sampler, na Tarefa 5b. H1 e H2 só são confirmadas se passarem no critério da **busca**. O relatório mostra os dois desvios (ajuste aprovado pelo usuário);
+- redes: vale o desvio das 5 sementes com validação por linha.
 
 **Fora deste plano:**
 - o Simulated Annealing próprio, que só faz sentido se o H1 mostrar que um buscador diferente do TPE ganha;
@@ -327,9 +327,51 @@ git push -u origin <branch>
 gh pr create --title "Experimentos de otimização: samplers, cerca, sementes e redes" --body "..."
 ```
 
+### Tarefa 5b: ruído da busca (TPE com 3 sementes de sampler)
+
+Ajuste aprovado pelo usuário depois da Tarefa 5. Hoje `cv_aninhada` usa a mesma `semente` para as dobras e para o sampler. Para medir só o ruído da busca, as dobras têm de ficar fixas e só a semente do sampler deve variar.
+
+**Arquivos:**
+- Modificar: `src/eficiencia/validacao.py` (`_estudo`, `cv_aninhada`)
+- Modificar: `src/eficiencia/experimentos.py` (`experimento_samplers`)
+- Teste: `tests/test_validacao.py`, `tests/test_experimentos.py`
+
+**Interfaces:**
+- Produz:
+  - `_estudo(..., semente_sampler: int | None = None)`. O sampler usa `seed=(semente if semente_sampler is None else semente_sampler) + len(estudo.trials)`. As dobras internas continuam com `semente`.
+  - `cv_aninhada(..., semente_sampler: int | None = None)`, que repassa o valor a `_estudo`. As dobras externas continuam com `semente`. Com `semente_sampler` diferente de `None`, o nome do estudo ganha `-ss{semente_sampler}` logo depois do sufixo do sampler: `f"{prefixo}{sufixo_sampler}-ss{k}-e{n_externas}-..."`. Com `None`, o nome não muda.
+  - O resultado de `experimento_samplers` mantém as chaves de hoje (`tpe`, `random`, `cmaes`, `qmc`, `gp`) e acrescenta:
+    - `tpe_ss1` e `tpe_ss2`: TPE com `semente_sampler` 1 e 2, nas mesmas dobras;
+    - `ruido_busca_tpe`: `{"erros": [tpe, tpe_ss1, tpe_ss2], "media": float, "desvio": float}`, com o desvio em `ddof=1`, igual ao de `sementes`.
+  - A chave `tpe` (semente 0, sem sufixo) já é a primeira das 3 sementes.
+
+- [ ] **Passo 1: escrever os testes que falham**
+
+```python
+def test_semente_sampler_muda_so_a_busca(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    df = carregar_base()
+    cv_aninhada("linear", df, n_tentativas=2, storage=storage, n_externas=2, n_internas=2)
+    cv_aninhada("linear", df, n_tentativas=2, storage=storage, n_externas=2, n_internas=2, semente_sampler=1)
+    nomes = optuna.get_all_study_names(storage)
+    com = sorted(n for n in nomes if "-ss1-" in n)
+    sem = sorted(n for n in nomes if "-ss" not in n)
+    assert len(com) == len(sem) == 2
+    a = optuna.load_study(study_name=sem[0], storage=storage).trials
+    b = optuna.load_study(study_name=com[0], storage=storage).trials
+    assert [t.params for t in a] != [t.params for t in b]
+```
+
+  Em `tests/test_experimentos.py`, o `test_samplers_rapido` passa a esperar `set(SAMPLERS) | {"tpe_ss1", "tpe_ss2", "ruido_busca_tpe"}` e confere que `len(r["ruido_busca_tpe"]["erros"]) == 3` e que `r["ruido_busca_tpe"]["desvio"] >= 0`.
+
+- [ ] **Passo 2:** rode `uv run pytest tests/test_validacao.py tests/test_experimentos.py -v`. Esperado: só os testes novos ou alterados falham.
+- [ ] **Passo 3:** implemente o que está em Interfaces.
+- [ ] **Passo 4:** rode `uv run pytest -q` e depois `uv run ruff check . && uv run ruff format --check .`. Esperado: tudo PASS, menos a falha conhecida `test_regenerar_igual_ao_commitado`.
+- [ ] **Passo 5: commit**: `git commit -m "Experimentos: ruído da busca com 3 sementes do TPE"`. Só commit, sem push.
+
 ### Tarefa 6: rodar os experimentos e escrever as conclusões
 
-Depende de: o PR das Tarefas 1–5 estar mergeado e a rodada 3 ter terminado. Para conferir, rode `uv run eficiencia-progresso --tentativas 50` em `fuel_treino`: todos os modelos têm de estar completos.
+Depende de: o PR das Tarefas 1–5b estar mergeado, o PR #22 (rodada 3) estar mergeado e a rodada 3 ter terminado. Para conferir, rode `uv run eficiencia-progresso --tentativas 50` em `fuel_treino`: todos os modelos têm de estar completos.
 
 **Arquivos:**
 - Criar: `relatorios/experimentos/*.json`, `relatorios/experimentos/curvas_perda.png` e `relatorios/experimentos/conclusoes.md`
@@ -355,14 +397,16 @@ Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
   | sementes | ~10 min |
   | redes | ~2–3 h |
   | cerca, 100 tentativas | ~3 h |
-  | samplers, 5 × 50 tentativas | ~7 h |
-  | **Total** | **~12 h** |
+  | samplers, 7 × 50 tentativas | ~10 h |
+  | **Total** | **~15 h** |
 
   Para acompanhar, abra o painel em `optuna/experimentos.db` com `uv run optuna-dashboard sqlite:///optuna/experimentos.db`.
 
 - [ ] **Passo 3:** escreva `conclusoes.md` com:
   - uma tabela por hipótese (H1–H6) com o erro MJ/km e por propulsão;
   - o veredito de cada hipótese pelo critério de 2 desvios-padrão;
+  - a ressalva de que o H1 foi testado só no XGBoost, cuja busca convergiu cedo. Ele não diz nada sobre as redes;
+  - a ressalva de que o H4 reusa parâmetros ajustados com validação por linha. Um empate não descarta a validação por grupo;
   - as bordas da cerca ampla;
   - a figura das curvas;
   - uma lista do que adotar, cada item como um plano/PR futuro.
