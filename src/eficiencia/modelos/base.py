@@ -38,6 +38,9 @@ class Candidato(ABC):
 class CandidatoPorAlvo(Candidato):
     """Um estimador por alvo, treinado em log(alvo) e previsto de volta com exp."""
 
+    # True: o estimador aceita fit(X, y, grupos=...) e recebe grupo_cv quando X tem essa coluna
+    USA_GRUPOS: ClassVar[bool] = False
+
     def __init__(self, semente: int = 0, **params) -> None:
         super().__init__(semente, **params)
         self.prep: Preprocessador
@@ -50,11 +53,16 @@ class CandidatoPorAlvo(Candidato):
     def fit(self, X: pd.DataFrame, Y: pd.DataFrame) -> Self:
         self.prep = Preprocessador().fit(X)
         Xt = self.prep.transform(X)
+        grupos = X["grupo_cv"].to_numpy() if self.USA_GRUPOS and "grupo_cv" in X else None
         self.estimadores = {}
         for alvo in ALVOS:
             presente = Y[alvo].notna().to_numpy()
             estimador = self._novo_estimador(alvo, self.prep.nomes)
-            estimador.fit(Xt[presente], np.log(Y[alvo].to_numpy()[presente]))
+            y = np.log(Y[alvo].to_numpy()[presente])
+            if grupos is None:
+                estimador.fit(Xt[presente], y)
+            else:
+                estimador.fit(Xt[presente], y, grupos=grupos[presente])
             self.estimadores[alvo] = estimador
         return self
 
