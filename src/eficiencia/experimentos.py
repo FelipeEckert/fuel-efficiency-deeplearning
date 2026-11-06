@@ -1,4 +1,4 @@
-"""Experimentos de otimização do XGBoost. Uso: uv run eficiencia-experimento {samplers,cerca,sementes}
+"""Experimentos de otimização do XGBoost. Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes}
 
 Nunca gravam em optuna/estudos.db: só leem de lá os parâmetros finais do treino oficial.
 """
@@ -9,13 +9,23 @@ import math
 
 import numpy as np
 import optuna
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 
 from eficiencia.dados import RAIZ
-from eficiencia.esquema import carregar_base
+from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.modelos.xgb import FAIXAS_AMPLO
 from eficiencia.treino import STORAGE
-from eficiencia.validacao import SAMPLERS, ResultadoCV, cv_aninhada, cv_fixa, hash8, prefixo_estudo
+from eficiencia.validacao import (
+    SAMPLERS,
+    ResultadoCV,
+    cv_aninhada,
+    cv_fixa,
+    dobras_por_grupo,
+    hash8,
+    prefixo_estudo,
+)
 
 STORAGE_EXPERIMENTOS = f"sqlite:///{(RAIZ / 'optuna' / 'experimentos.db').as_posix()}"
 PASTA_EXPERIMENTOS = RAIZ / "relatorios/experimentos"
@@ -128,17 +138,77 @@ def experimento_sementes(params: dict, n: int = 5, rapido: bool = False) -> dict
     return resultado
 
 
+def _estatisticas(resumos: list[dict]) -> dict:
+    erros = [x["erro_mj"] for x in resumos]
+    return {"media": float(np.mean(erros)), "desvio": float(np.std(erros, ddof=1)) if len(erros) > 1 else 0.0}
+
+
+def _figura_curvas(historicos: dict[str, list], caminho) -> None:
+    """Um painel por modo de validação: perda de treino e de validação por época."""
+    fig = Figure(figsize=(10, 4))
+    FigureCanvasAgg(fig)
+    for ax, (titulo, historico) in zip(fig.subplots(1, len(historicos), sharey=True), historicos.items()):
+        treino, validacao = zip(*historico)
+        ax.plot(treino, label="treino")
+        ax.plot(validacao, label="validação")
+        ax.set_title(titulo)
+        ax.set_xlabel("Época")
+        ax.legend()
+    fig.axes[0].set_ylabel("Perda (alvo padronizado)")
+    fig.savefig(caminho, dpi=120, bbox_inches="tight")
+
+
+def experimento_redes(
+    params: dict, n: int = 5, lrs=(1e-4, 3e-4, 1e-3, 3e-3, 1e-2), rapido: bool = False
+) -> dict:
+    df = carregar_base()
+    if rapido:
+        params = params | CANDIDATOS["rede_por_alvo"].PARAMS_RAPIDOS
+    n_externas = _dobras(rapido)["n_externas"]
+    com_grupo = ENTRADAS + ["grupo_cv"]
+
+    def cv(p=params, **kw):
+        return _resumo(cv_fixa("rede_por_alvo", df, p, n_externas=n_externas, **kw))
+
+    resultado = {"params": params}
+    for k in range(n):
+        resultado[f"linha_s{k}"] = cv(semente_modelo=k)
+        resultado[f"grupo_s{k}"] = cv(semente_modelo=k, colunas=com_grupo)
+    resultado["media5"] = cv(p=params | {"n_redes": 5})
+    for lr in lrs:
+        resultado[f"lr_{lr}"] = cv(p=params | {"lr": lr})
+    for prefixo in ("linha", "grupo"):
+        resultado[f"{prefixo}_resumo"] = _estatisticas([resultado[f"{prefixo}_s{k}"] for k in range(n)])
+
+    # curvas de perda: dobra externa 0, alvo mj_km_urbano, nos dois modos de validação
+    tr, _ = next(iter(dobras_por_grupo(df["grupo_cv"], n_externas, 0)))
+    alvo = "mj_km_urbano"
+    historicos = {}
+    for titulo, colunas in (("Validação por linha", ENTRADAS), ("Validação por grupo", com_grupo)):
+        modelo = CANDIDATOS["rede_por_alvo"](semente=0, **params).fit(
+            df.iloc[tr][colunas], df.iloc[tr][ALVOS]
+        )
+        historicos[titulo] = modelo.estimadores[alvo].mlp.historicos[0]
+    pasta = PASTA_EXPERIMENTOS / "rapido" if rapido else PASTA_EXPERIMENTOS
+    pasta.mkdir(parents=True, exist_ok=True)
+    _figura_curvas(historicos, pasta / "curvas_perda.png")
+    _gravar("redes", resultado, rapido)
+    return resultado
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Experimentos de otimização do XGBoost.")
-    parser.add_argument("experimento", choices=["samplers", "cerca", "sementes"])
+    parser.add_argument("experimento", choices=["samplers", "cerca", "sementes", "redes"])
     parser.add_argument(
         "--tentativas", type=int, help="tentativas do Optuna (padrão: 50 samplers, 100 cerca)"
     )
     parser.add_argument("--rapido", action="store_true", help="2 dobras, parâmetros rápidos, sem banco")
     args = parser.parse_args(argv)
-    if args.experimento == "sementes":
-        params = {} if args.rapido else melhores_params("xgboost")
-        resultado = experimento_sementes(params, rapido=args.rapido)
+    if args.experimento in ("sementes", "redes"):
+        nome = "xgboost" if args.experimento == "sementes" else "rede_por_alvo"
+        params = {} if args.rapido else melhores_params(nome)
+        f = experimento_sementes if args.experimento == "sementes" else experimento_redes
+        resultado = f(params, rapido=args.rapido)
     else:
         f = experimento_samplers if args.experimento == "samplers" else experimento_cerca
         kw = {"n_tentativas": args.tentativas} if args.tentativas else {}

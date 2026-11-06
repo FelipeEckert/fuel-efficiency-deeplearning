@@ -42,3 +42,19 @@ def test_sementes_rapido(tmp_path, monkeypatch):
 def test_experimento_nao_esta_no_treino_oficial():
     assert "xgboost_amplo" not in CANDIDATOS
     assert experimentos.STORAGE_EXPERIMENTOS != treino.STORAGE
+
+
+def test_redes_rapido(tmp_path, monkeypatch):
+    monkeypatch.setattr(experimentos, "PASTA_EXPERIMENTOS", tmp_path)
+    p = {
+        "camadas": 1,
+        "largura": 32,
+        "dropout": 0.0,
+        "lr": 1e-3,
+        "weight_decay": 1e-4,
+        "tamanho_lote": 32,
+        "max_epocas": 3,
+    }
+    r = experimentos.experimento_redes(p, n=2, lrs=(1e-3,), rapido=True)
+    assert {"linha_s0", "linha_s1", "grupo_s0", "grupo_s1", "media5", "lr_0.001"} <= set(r)
+    assert (tmp_path / "rapido" / "curvas_perda.png").exists()
