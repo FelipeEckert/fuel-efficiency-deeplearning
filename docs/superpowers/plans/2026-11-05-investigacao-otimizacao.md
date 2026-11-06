@@ -417,3 +417,9 @@ Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
 - **H2 confirmada:** a faixa ampla vira a do `XGBoost`, com `VERSAO = 2`, e o XGBoost é treinado de novo.
 - **H4 ou H5 confirmadas:** `treino`/`validacao` passam a enviar `grupo_cv` e/ou `n_redes` vira padrão, com `VERSAO = 3` nas redes.
 - **H1 confirmada:** trocar o sampler padrão e, aí sim, avaliar o Simulated Annealing como sampler próprio.
+- **Outros boostings (LightGBM e CatBoost), a decidir depois dos resultados:** ainda não foram testados. A floresta aleatória já foi: ficou em 7,02 % na rodada 3.
+  - **Quando testar:** se a cerca ampla (H2) não melhorar o XGBoost, ou se melhorar pouco e sobrar dúvida sobre o algoritmo.
+  - **Prioridade:** o CatBoost vem antes do LightGBM. Ele costuma ir melhor com poucos dados (cerca de 350 linhas aqui) e tem proteção própria contra sobreajuste. O LightGBM foi pensado para bases grandes: o padrão de 20 linhas por folha precisaria entrar na busca.
+  - **Como:** criar as classes `LightGBM` e `CatBoost` em `src/eficiencia/modelos/` com `monotone_constraints` vindas de `sinais_monotonia`, como o XGBoost já faz. Elas entram em `EXPERIMENTAIS`, não em `CANDIDATOS`. Comparar com a mesma `cv_aninhada`, 100 tentativas, pelo mesmo critério de 2 desvios-padrão.
+  - **Custo:** novas dependências, `lightgbm` e/ou `catboost`. Testar `checar_monotonia` nos dois antes de comparar erros.
+  - **Se algum vencer o XGBoost por mais de 2σ:** entra em `CANDIDATOS` num PR próprio, com o treino oficial refeito.
