@@ -1,4 +1,4 @@
-"""Experimentos de otimização dos modelos (XGBoost e redes). Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes}
+"""Experimentos de otimização dos modelos (XGBoost, outros boostings e redes). Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes,boosting}
 
 Nunca gravam em optuna/estudos.db: só leem de lá os parâmetros finais do treino oficial.
 """
@@ -126,6 +126,24 @@ def experimento_cerca(
     return resultado
 
 
+def experimento_boosting(
+    n_tentativas: int = 100, storage: str | None = STORAGE_EXPERIMENTOS, rapido: bool = False
+) -> dict:
+    """CatBoost e LightGBM na mesma CV aninhada do XGBoost oficial (100 tentativas, 5 dobras externas)."""
+    df = carregar_base()
+
+    def rodar(arm):
+        r = {}
+        for nome in ("catboost", "lightgbm"):
+            cv = cv_aninhada(nome, df, n_tentativas, arm, rapido=rapido, **_dobras(rapido))
+            r[nome] = _resumo(cv) | {"params_por_dobra": cv.params_por_dobra}
+        return r
+
+    resultado = _com_storage(storage, rodar)
+    _gravar("boosting", resultado, rapido)
+    return resultado
+
+
 def experimento_sementes(params: dict, n: int = 5, rapido: bool = False) -> dict:
     df = carregar_base()
     if rapido:
@@ -205,9 +223,9 @@ def experimento_redes(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Experimentos de otimização dos modelos (XGBoost e redes).")
-    parser.add_argument("experimento", choices=["samplers", "cerca", "sementes", "redes"])
+    parser.add_argument("experimento", choices=["samplers", "cerca", "sementes", "redes", "boosting"])
     parser.add_argument(
-        "--tentativas", type=int, help="tentativas do Optuna (padrão: 50 samplers, 100 cerca)"
+        "--tentativas", type=int, help="tentativas do Optuna (padrão: 50 samplers, 100 cerca e boosting)"
     )
     parser.add_argument("--rapido", action="store_true", help="2 dobras, parâmetros rápidos, sem banco")
     args = parser.parse_args(argv)
@@ -217,7 +235,9 @@ def main(argv: list[str] | None = None) -> None:
         f = experimento_sementes if args.experimento == "sementes" else experimento_redes
         resultado = f(params, rapido=args.rapido)
     else:
-        f = experimento_samplers if args.experimento == "samplers" else experimento_cerca
+        f = {"samplers": experimento_samplers, "cerca": experimento_cerca, "boosting": experimento_boosting}[
+            args.experimento
+        ]
         kw = {"n_tentativas": args.tentativas} if args.tentativas else {}
         if args.rapido:
             kw |= {"n_tentativas": 2, "storage": None}

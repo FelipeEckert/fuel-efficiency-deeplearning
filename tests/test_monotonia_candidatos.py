@@ -1,16 +1,18 @@
 import pytest
 
 from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base
-from eficiencia.modelos import CANDIDATOS
+from eficiencia.modelos import CANDIDATOS, EXPERIMENTAIS
 from eficiencia.modelos.restricoes import sinais_monotonia
 from eficiencia.monotonia import checar_monotonia
 from eficiencia.treino import treinar
 
 
-@pytest.mark.parametrize("nome", ["linear", "floresta", "xgboost", "rede_por_alvo", "rede_multi"])
+@pytest.mark.parametrize(
+    "nome", ["linear", "floresta", "xgboost", "rede_por_alvo", "rede_multi", "catboost", "lightgbm"]
+)
 def test_candidato_monotono_por_construcao(nome):
     df = carregar_base()
-    cls = CANDIDATOS[nome]
+    cls = (CANDIDATOS | EXPERIMENTAIS)[nome]
     m = cls(**cls.PARAMS_RAPIDOS).fit(df[ENTRADAS], df[ALVOS])
     assert checar_monotonia(m, df) == []
 

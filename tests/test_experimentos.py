@@ -42,8 +42,16 @@ def test_sementes_rapido(tmp_path, monkeypatch):
     assert r["desvio"] >= 0 and len(r["por_semente"]) == 2
 
 
+def test_boosting_rapido(tmp_path, monkeypatch):
+    monkeypatch.setattr(experimentos, "PASTA_EXPERIMENTOS", tmp_path)
+    r = experimentos.experimento_boosting(n_tentativas=2, storage=None, rapido=True)
+    assert set(r) == {"catboost", "lightgbm"}
+    assert all(x["erro_mj"] < 0.15 and len(x["params_por_dobra"]) == 2 for x in r.values())
+    assert (tmp_path / "rapido" / "boosting.json").exists()
+
+
 def test_experimento_nao_esta_no_treino_oficial():
-    assert "xgboost_amplo" not in CANDIDATOS
+    assert not {"xgboost_amplo", "catboost", "lightgbm"} & set(CANDIDATOS)
     assert experimentos.STORAGE_EXPERIMENTOS != treino.STORAGE
 
 

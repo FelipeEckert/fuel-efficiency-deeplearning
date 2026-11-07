@@ -17,7 +17,7 @@ def test_xgboost_monotono_em_f2():
     assert (np.diff(p["kml_gasolina_urbano"]) <= 1e-9).all()
 
 
-@pytest.mark.parametrize("nome", ["floresta", "xgboost"])
+@pytest.mark.parametrize("nome", ["floresta", "xgboost", "catboost", "lightgbm"])
 def test_cv_rapida(nome):
     r = cv_aninhada(
         nome, carregar_base(), n_tentativas=2, storage=None, n_externas=2, n_internas=2, rapido=True

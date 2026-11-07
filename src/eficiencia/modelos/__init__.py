@@ -1,6 +1,7 @@
 """Registro dos candidatos de modelo, indexados pelo nome."""
 
 from eficiencia.modelos.base import Candidato
+from eficiencia.modelos.boosting import CatBoost, LightGBM
 from eficiencia.modelos.floresta import Floresta
 from eficiencia.modelos.linear import Linear
 from eficiencia.modelos.rede import RedeMulti, RedePorAlvo
@@ -11,4 +12,4 @@ CANDIDATOS: dict[str, type[Candidato]] = {
 }
 
 # só para experimentos: fora de CANDIDATOS, o treino oficial e o progresso não os enxergam
-EXPERIMENTAIS: dict[str, type[Candidato]] = {XGBoostAmplo.nome: XGBoostAmplo}
+EXPERIMENTAIS: dict[str, type[Candidato]] = {c.nome: c for c in (XGBoostAmplo, CatBoost, LightGBM)}
