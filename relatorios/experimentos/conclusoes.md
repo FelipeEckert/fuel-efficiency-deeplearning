@@ -202,3 +202,21 @@ Cada item seria um plano e um PR próprios. Nada muda no modelo publicado por ca
   - `cerca`: 9h20;
   - `samplers`: 9h10;
   - `boosting`: 34h10, rodado depois, também via WMI.
+
+## H8 — entradas novas (2026-11-09)
+
+Sondas com `cv_fixa` do XGBoost, com os hiperparâmetros publicados fixos e as sementes de dobra 0, 1 e 2. A comparação é pareada: cada variante roda nas mesmas dobras que a base.
+
+| Variante | Erro MJ/km (média de 3) | Por semente | Plug-in por semente |
+|---|---|---|---|
+| Base | 5,83 % | 5,62 / 5,96 / 5,90 | 11,54 / 14,74 / 14,57 |
+| + autonomia elétrica | 5,67 % | 5,56 / 5,76 / 5,68 | 11,58 / 13,67 / 12,82 |
+| − bateria_estimada | 5,76 % | 5,56 / 5,90 / 5,82 | 11,66 / 14,41 / 14,25 |
+| + energia de tração no ciclo (FTP-75 e HWFET da EPA, só a parte positiva) | 5,80 % | 5,69 / 5,84 / 5,88 | 12,16 / 14,44 / 14,65 |
+
+**Veredito:** a autonomia entra e a `bateria_estimada` sai. Ambas melhoram em todas as sementes: a autonomia em −0,16 ponto na média, e a remoção da bateria em −0,07 ponto.
+- A energia de tração no ciclo fica de fora. Ela melhora 0,03 ponto na média, dentro do ruído, e no seed 0 piora.
+
+**Fonte dos ciclos:** `https://www.epa.gov/sites/default/files/2015-10/ftpcol.txt` e `hwycol.txt`.
+
+**Ressalva:** a autonomia é medida no ensaio. No uso, o que está disponível é a autonomia de projeto.
