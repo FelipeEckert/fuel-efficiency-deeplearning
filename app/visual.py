@@ -83,7 +83,10 @@ def html_arvore(nos: list[dict]) -> str:
             col[n["id"]] = 0
         else:
             pai = por_id[n["pai"]]
-            vai_sim = pai["sim"] if n["no_caminho"] else not pai["sim"]
+            if pai["sim"] is None:  # pai fora do caminho: no XGBoost o filho "Yes" tem o menor id
+                vai_sim = n["id"] == min(f["id"] for f in nos if f["pai"] == pai["id"])
+            else:
+                vai_sim = pai["sim"] == n["no_caminho"]
             col[n["id"]] = 2 * col[pai["id"]] + (0 if vai_sim else 1)
         pos[n["id"]] = ((col[n["id"]] + 0.5) / 2 ** n["nivel"] * 1000, 30 + 70 * n["nivel"])
 
@@ -146,5 +149,5 @@ def html_rede() -> str:
         f'font-size:12px;color:#C7D2FE">{t}</div>'
         for x, t in zip(xs, ["48 entradas", "oculta 1", "oculta 2", "urbano · estrada"])
     ]
-    legenda = "Esquema ilustrativo (6-7-7-2 neurônios), não a rede real: a rede publicada tem mais neurônios por camada."
+    legenda = "Esquema ilustrativo; o número de neurônios não é o da rede real."
     return _documento("Esquema da rede neural", 1000, 340, "".join(arestas + neuronios + rotulos), legenda)

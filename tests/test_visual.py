@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -76,3 +77,30 @@ def test_html_rede_uma_particula_por_aresta():
     h = html_rede()
     assert h.count('class="part"') == 6 * 7 + 7 * 7 + 7 * 2
     assert "esquema" in h.lower() and "prefers-reduced-motion" in h
+
+
+def test_filhos_de_no_fora_do_caminho_nao_se_sobrepoem():
+    def no(id_, pai, nivel, caminho, sim):
+        return {
+            "id": id_,
+            "pai": pai,
+            "nivel": nivel,
+            "folha": False,
+            "coluna": "pbt_kg",
+            "categoria": None,
+            "limite": 2000.0 + id_,
+            "valor": None,
+            "carros": 10,
+            "no_caminho": caminho,
+            "sim": sim,
+        }
+
+    nos = [
+        no(0, None, 0, True, True),
+        no(1, 0, 1, True, True),
+        no(2, 0, 1, False, None),
+        no(5, 2, 2, False, None),
+        no(6, 2, 2, False, None),
+    ]
+    h = html_arvore(nos)
+    assert len(set(re.findall(r"left:([\d.]+)px;top:155.0px", h))) == 2
