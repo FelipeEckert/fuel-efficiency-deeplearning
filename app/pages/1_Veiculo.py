@@ -1,15 +1,20 @@
 """Página Veículo: estimativa de um veículo, "e se" sobre ele e cenários salvos para comparação."""
 
+import math
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pasta app/, para importar formulario
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from formulario import excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
 
+from eficiencia.entrada import validar
+from eficiencia.esquema import ROTULOS
+from eficiencia.explicar import explicar, explicavel
 from eficiencia.fisica import classe_inercia
 from eficiencia.formato import numero
 from eficiencia.prever import prever
@@ -73,6 +78,47 @@ def _resultado(r: pd.Series) -> None:
             _metrica(coluna, f"km/l {NOMES_KML[comb]}", r, f"kml_{comb}", 1, "km/l")
     for aviso in r["avisos"]:
         st.warning(aviso)
+
+
+def _explicacao(pacote, veiculo: dict) -> None:
+    """Quanto cada entrada aumenta ou reduz o consumo em relação ao veículo médio da base (SHAP)."""
+    st.subheader("Por que este valor?")
+    if not explicavel(pacote.modelo):
+        st.caption("A explicação por entrada está disponível só para o modelo XGBoost.")
+        return
+    ciclo = st.radio("Ciclo", ["urbano", "estrada"], horizontal=True, key="shap_ciclo")
+    normalizado = (
+        validar(pd.DataFrame([veiculo]))[0].iloc[0].to_dict()
+    )  # completa a bateria_estimada, como o prever
+    base, contribuicoes = explicar(pacote.modelo, normalizado, f"mj_km_{ciclo}")
+    # entrar como eletrificado espalha o efeito por entradas que o validar zera; junta numa linha só
+    junta = ["propulsao", "combustivel", "bateria_kwh", "bateria_estimada"]
+    if normalizado["cilindrada_cm3"] == 0:
+        junta.append("cilindrada_cm3")
+    rotulos = ROTULOS | {"propulsao_grupo": "Tipo de propulsão", "demais": "Demais entradas"}
+    log = contribuicoes.drop(junta)
+    log["propulsao_grupo"] = contribuicoes[junta].sum()
+    top = log.reindex(log.abs().nlargest(8).index)
+    top["demais"] = log.drop(top.index).sum()  # o que sobra, para os efeitos fecharem na previsão
+    efeitos = ((np.exp(top) - 1) * 100).iloc[::-1]  # maior no topo do gráfico, "Demais entradas" embaixo
+    st.caption(
+        f"Veículo médio da base: {_fixo(math.exp(base), 2)} MJ/km × efeitos = "
+        f"{_fixo(math.exp(base + contribuicoes.sum()), 2)} MJ/km. Cada barra é o quanto a entrada "
+        "aumenta (+) ou reduz (−) o consumo em relação a ele; os efeitos se multiplicam. "
+        '"Tipo de propulsão" junta propulsão, combustível e bateria (e a cilindrada zero dos elétricos).'
+    )
+    fig = go.Figure(
+        go.Bar(
+            x=efeitos.values,
+            y=[rotulos.get(e, e) for e in efeitos.index],
+            orientation="h",
+            marker_color=["#c0392b" if v > 0 else "#27ae60" for v in efeitos.values],
+            texttemplate="%{x:+.1f} %",
+            hovertemplate="%{y}: %{x:+.1f} %<extra></extra>",
+        )
+    )
+    fig.update_layout(xaxis_title="efeito no MJ/km (%)", separators=",.", height=360, margin={"t": 30})
+    st.plotly_chart(fig)
 
 
 def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series]:
@@ -191,6 +237,7 @@ original = _prever(pacote, veiculo)
 if original is None:
     st.stop()
 _resultado(original)
+_explicacao(pacote, veiculo)
 
 alterado, novo = _e_se(pacote, veiculo, original)
 st.button(
