@@ -67,3 +67,12 @@ def test_grupo_cv():
     )
     assert grupo_cv("HONDA", "HR-V (mod. 26)") == "HONDA HR-V"
     assert grupo_cv("CHEVROLET", "ONIX PLUS") != grupo_cv("CHEVROLET", "ONIX")
+
+
+def test_autonomia_eletrica(limpo):
+    df, _ = limpo
+    sem_bateria = df["propulsao"].isin(["Combustão", "Híbrido"])
+    assert (df.loc[sem_bateria, "autonomia_eletrica_km"] == 0).all()
+    assert (df.loc[df["propulsao"].eq("Plug-in"), "autonomia_eletrica_km"].dropna() > 0).all()
+    recarregavel = df["propulsao"].isin(["Plug-in", "Elétrico"])
+    assert df.loc[recarregavel, "autonomia_eletrica_km"].isna().sum() <= 6

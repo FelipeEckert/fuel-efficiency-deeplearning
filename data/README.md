@@ -70,7 +70,8 @@ A planilha `ESPECIFICAÇÃO TÉCNICA - FEVEREIRO DE 2026.XLSM` não é usada por
 | `n_marchas` | vazio em CVT/DHT |
 | `direcao` | eletrica, hidraulica, eletro-hidraulica |
 | `bateria_kwh` | capacidade nominal (kWh); 0 em combustão; sem lacunas |
-| `bateria_estimada` | True quando a bateria veio de inferência ou mediana (17 híbridos) |
+| `autonomia_eletrica_km` | autonomia no modo elétrico corrigida (km), coluna 78 da planilha; 0 em Combustão e Híbrido; preenchida em todos os 159 Plug-in e Elétricos |
+| `bateria_estimada` | marcação de qualidade (não é entrada do modelo): True quando a bateria veio de inferência ou mediana (17 híbridos) |
 
 **Alvos** (valores corrigidos, os da etiqueta; vazio quando não se aplica)
 

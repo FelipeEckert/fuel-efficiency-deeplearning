@@ -19,7 +19,7 @@ NUMERICAS = [
     "cilindrada_cm3",
     "n_marchas",
     "bateria_kwh",
-    "bateria_estimada",
+    "autonomia_eletrica_km",
 ]
 ENTRADAS = CATEGORICAS + NUMERICAS
 ALVOS = [
@@ -74,7 +74,7 @@ ROTULOS: dict[str, str] = {
     "cilindrada_cm3": "Cilindrada (cm³)",
     "n_marchas": "Número de marchas",
     "bateria_kwh": "Bateria (kWh)",
-    "bateria_estimada": "Bateria estimada",
+    "autonomia_eletrica_km": "Autonomia elétrica (km)",
     "mj_km_urbano": "MJ/km urbano",
     "mj_km_estrada": "MJ/km estrada",
     "kml_gasolina_urbano": "km/l gasolina urbano",

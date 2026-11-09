@@ -14,7 +14,7 @@ from eficiencia.entrada import _CANONICOS, _campo, _chave, _numero, _vazio, vali
 from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS
 from eficiencia.prever import prever
 
-COLUNAS_PORTFOLIO = ["nome", "volume", "mj_km_conhecido"] + [c for c in ENTRADAS if c != "bateria_estimada"]
+COLUNAS_PORTFOLIO = ["nome", "volume", "mj_km_conhecido"] + ENTRADAS
 ROTULOS_PORTFOLIO = {"nome": "Nome", "volume": "Volume", "mj_km_conhecido": "MJ/km conhecido", **ROTULOS}
 OBRIGATORIAS = ("nome", "volume")
 NAO_INFORMADO = "não informado"

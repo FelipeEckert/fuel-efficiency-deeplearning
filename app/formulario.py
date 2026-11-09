@@ -179,6 +179,11 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
     bateria = 0.0
     if propulsao != "Combustão":
         bateria = st.number_input(ROTULOS["bateria_kwh"], key=chave_de("bateria_kwh"), step=1.0)
+    autonomia = 0.0
+    if propulsao in ("Plug-in", "Elétrico"):
+        autonomia = st.number_input(
+            ROTULOS["autonomia_eletrica_km"], key=chave_de("autonomia_eletrica_km"), step=10.0
+        )
 
     return {
         "propulsao": propulsao,
@@ -196,6 +201,7 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
         "cilindrada_cm3": 0.0 if eletrico else cilindrada,
         "n_marchas": marchas,
         "bateria_kwh": bateria,
+        "autonomia_eletrica_km": autonomia,
     }
 
 

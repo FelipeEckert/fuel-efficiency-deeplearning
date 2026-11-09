@@ -96,7 +96,7 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
     )  # completa a bateria_estimada, como o prever
     base, contribuicoes = explicar(pacote.modelo, normalizado, f"mj_km_{ciclo}")
     # entrar como eletrificado espalha o efeito por entradas que o validar zera; junta numa linha só
-    junta = ["propulsao", "combustivel", "bateria_kwh", "bateria_estimada"]
+    junta = ["propulsao", "combustivel", "bateria_kwh"]
     if normalizado["cilindrada_cm3"] == 0:
         junta.append("cilindrada_cm3")
     rotulos = ROTULOS | {"propulsao_grupo": "Tipo de propulsão", "demais": "Demais entradas"}

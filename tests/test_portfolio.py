@@ -15,7 +15,7 @@ def test_media_ponderada_valores_reais():
 
 
 def test_mistura_real_e_estimado(pacote_rapido):
-    v = carregar_base()[ENTRADAS].iloc[0].drop("bateria_estimada").to_dict()
+    v = carregar_base()[ENTRADAS].iloc[0].to_dict()
     df = pd.DataFrame(
         [{"nome": "novo", "volume": 100, **v}, {"nome": "atual", "volume": 100, "mj_km_conhecido": 1.0}]
     )

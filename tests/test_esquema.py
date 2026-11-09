@@ -2,6 +2,7 @@ from eficiencia.esquema import (
     ALVOS,
     CATEGORICAS,
     ENTRADAS,
+    NUMERICAS,
     ROTULOS,
     VALORES,
     carregar_base,
@@ -20,3 +21,8 @@ def test_base_tem_todas_as_colunas():
     for c in CATEGORICAS:
         assert set(df[c].dropna()) <= set(VALORES[c])
     assert set(ROTULOS) >= set(ENTRADAS)
+
+
+def test_autonomia_entra_e_bateria_estimada_sai():
+    assert "bateria_estimada" not in ENTRADAS
+    assert "autonomia_eletrica_km" in NUMERICAS

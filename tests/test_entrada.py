@@ -54,3 +54,23 @@ def test_minimos_por_propulsao():
     assert erros == ["linha 1: Cilindrada (cm³) deve ser maior que zero para propulsão Combustão"]
     _, erros = validar(pd.DataFrame([veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=0)]))
     assert erros == ["linha 1: Bateria (kWh) deve ser maior que zero para propulsão Plug-in"]
+
+
+def test_autonomia_eletrica_obrigatoria_em_recarregaveis():
+    for prop, comb in (("Plug-in", "flex"), ("Elétrico", "eletrico")):
+        _, erros = validar(
+            pd.DataFrame([veiculo(propulsao=prop, combustivel=comb, autonomia_eletrica_km=None)])
+        )
+        assert "linha 1: Autonomia elétrica (km) obrigatório" in erros
+
+
+def test_autonomia_eletrica_zera_sem_recarga_e_tem_limite():
+    for prop in ("Combustão", "Híbrido"):
+        ok, erros = validar(
+            pd.DataFrame([veiculo(propulsao=prop, bateria_kwh=1.5, autonomia_eletrica_km=50)])
+        )
+        assert erros == [] and ok.iloc[0]["autonomia_eletrica_km"] == 0
+    _, erros = validar(
+        pd.DataFrame([veiculo(propulsao="Plug-in", combustivel="flex", autonomia_eletrica_km=2500)])
+    )
+    assert any("Autonomia elétrica (km) fora do limite físico" in e for e in erros)
