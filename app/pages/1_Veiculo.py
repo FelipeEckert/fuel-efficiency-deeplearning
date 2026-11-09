@@ -10,9 +10,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 from formulario import NOMES_VALORES, excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
-from visual import CORES, html_arvore, html_rede
+from visual import CORES, NOMES, html_arvore, html_rede
 
 from eficiencia.arvore import caminho_arvore
 from eficiencia.entrada import validar
@@ -145,7 +144,7 @@ def _controles(veiculo: dict) -> dict:
     st.subheader("Simulador de cenários")
     st.caption("Mexa nos controles para ver quanto o consumo muda em relação ao veículo original.")
     for coluna, (chave, (rotulo, valores)) in zip(st.columns(len(PRESETS)), PRESETS.items()):
-        coluna.button(rotulo, key=chave, on_click=_definir, args=(valores,), use_container_width=True)
+        coluna.button(rotulo, key=chave, on_click=_definir, args=(valores,), width="stretch")
     c1, c2 = st.columns(2)
     variacao = {
         "massa_om_kg": c1.slider("Variação da massa (%)", -20, 20, 0, 5, format="%d %%", key="es_massa"),
@@ -283,7 +282,7 @@ if "cenarios" not in st.session_state:
     st.session_state["cenarios"] = []
 
 resumo = st.container()  # preenchido depois do formulário, com os valores atuais
-with st.expander("Ficha técnica do veículo", expanded=False):
+with st.expander("Editar ficha técnica do veículo", expanded=False):
     veiculo = formulario_veiculo("veiculo")
 resumo.caption(
     f"{veiculo['propulsao']} · {NOMES_VALORES['combustivel'].get(veiculo['combustivel'], veiculo['combustivel'])}"
@@ -325,9 +324,19 @@ with aba_arvore:
     if contexto:
         ciclo, normalizado = contexto
         nos = caminho_arvore(pacote.modelo, normalizado, f"mj_km_{ciclo}")
-        components.html(html_arvore(nos), height=470)
+        n = pacote.modelo.estimadores[f"mj_km_{ciclo}"].get_booster().num_boosted_rounds()
+        st.caption(
+            f"Árvore 1 de {n} do XGBoost (alvo MJ/km {ciclo}). O valor da folha é uma pequena correção "
+            f"(em escala log) que se soma às das outras {n - 1} árvores. O sinal percorre o caminho do "
+            "veículo; os demais nós ficam apagados."
+        )
+        st.iframe(html_arvore(nos), height=500)
     else:
         st.caption("A árvore está disponível só quando o modelo vencedor é o XGBoost.")
 with aba_rede:
-    components.html(html_rede(), height=420)
+    st.caption(
+        "Esquema ilustrativo de uma rede neural, uma das candidatas do treino; o número de neurônios "
+        f"não é o real. O app usa o modelo {NOMES.get(pacote.algoritmo, pacote.algoritmo)}."
+    )
+    st.iframe(html_rede(), height=440)
 _cenarios()

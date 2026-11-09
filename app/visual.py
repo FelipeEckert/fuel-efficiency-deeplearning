@@ -1,4 +1,4 @@
-"""HTML animado (CSS) da árvore real do XGBoost e do esquema da rede neural, para st.components.v1.html."""
+"""HTML animado (CSS) da árvore real do XGBoost e do esquema da rede neural, para st.iframe. As legendas ficam na página."""
 
 import math
 from html import escape
@@ -17,7 +17,19 @@ CORES = {
     "lilas": "#A78BFA",
 }
 
-_CASAS = {"f0_n": 1, "f2_n_kmh2": 4}  # as demais colunas numéricas (kg, kW, cm³...) usam 0 casas
+NOMES = {  # nome legível de cada algoritmo candidato
+    "linear": "Regressão linear",
+    "floresta": "Random Forest",
+    "xgboost": "XGBoost",
+    "rede_por_alvo": "Rede neural por alvo",
+    "rede_multi": "Rede neural multi-saída",
+}
+
+_CASAS = {
+    "f0_n": 1,
+    "bateria_kwh": 1,
+    "f2_n_kmh2": 4,
+}  # as demais colunas numéricas (kg, kW, cm³...) usam 0 casas
 
 # Keyframes e classes do protótipo V6. Só transform/opacity; o .part sai do HTML como class="part".
 _CSS = """
@@ -59,13 +71,13 @@ def _linha(x1, y1, x2, y2, cor="#3730A3", esp=1.5, filho="", vars_=""):
     return f'<div style="{estilo}">{filho}</div>'
 
 
-def _documento(rotulo: str, largura: int, altura: int, miolo: str, legenda: str) -> str:
+def _documento(rotulo: str, largura: int, altura: int, miolo: str) -> str:
     return (
         f'<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>{_CSS}</style></head><body>'
         "<button onclick=\"document.body.classList.toggle('pausado')\">Pausar animação</button>"
         f'<div style="overflow-x:auto" role="img" aria-label="{escape(rotulo)}">'
         f'<div style="position:relative;width:{largura}px;height:{altura}px">{miolo}</div></div>'
-        f'<p style="font-size:12px;color:#C7D2FE">{legenda}</p></body></html>'
+        "</body></html>"
     )
 
 
@@ -74,10 +86,15 @@ def html_arvore(nos: list[dict]) -> str:
     por_id = {n["id"]: n for n in nos}
     ult = max(n["nivel"] for n in nos)
     passo_fundo = min(70, 132 / max(1, ult - 3))  # níveis fundos (só o caminho) cabem até y = 372
-    pos, col = {}, {}  # centro (x, y) e posição binária no nível: 2 * posição do pai + 0 (sim) ou 1 (não)
+    yes, pos, col = (
+        {},
+        {},
+        {},
+    )  # yes: o nó é o filho "Yes" do XGBoost?  # centro (x, y) e posição binária no nível: 2 * posição do pai + 0 (sim) ou 1 (não)
     for n in nos:
         if n["nivel"] > 2:  # desce em coluna, no x do pai
             pos[n["id"]] = (pos[n["pai"]][0], 170 + (n["nivel"] - 2) * passo_fundo)
+            yes[n["id"]] = por_id[n["pai"]]["sim"]  # nível fundo: só o filho do caminho
             continue
         if n["nivel"] == 0:
             col[n["id"]] = 0
@@ -87,16 +104,23 @@ def html_arvore(nos: list[dict]) -> str:
                 vai_sim = n["id"] == min(f["id"] for f in nos if f["pai"] == pai["id"])
             else:
                 vai_sim = pai["sim"] == n["no_caminho"]
+            yes[n["id"]] = vai_sim
             col[n["id"]] = 2 * col[pai["id"]] + (0 if vai_sim else 1)
         pos[n["id"]] = ((col[n["id"]] + 0.5) / 2 ** n["nivel"] * 1000, 30 + 70 * n["nivel"])
 
     ordem = {n["id"]: k for k, n in enumerate(n for n in nos if n["no_caminho"])}  # k = passo do sinal
-    arestas, caixas = [], []
+    arestas, caixas, rotulos_aresta = [], [], []
     for n in nos:
         x, y = pos[n["id"]]
         k = ordem.get(n["id"])
         if n["pai"] is not None:
             px, py = pos[n["pai"]]
+            # categoria: o Yes do XGBoost é x < 1, ou seja, "não é a categoria"
+            sim_ou_nao = "sim" if yes[n["id"]] != (por_id[n["pai"]]["categoria"] is not None) else "não"
+            rotulos_aresta.append(
+                f'<div style="position:absolute;left:{(px + x) / 2 - 15:.1f}px;top:{(py + y) / 2 - 8:.1f}px;'
+                f'width:30px;text-align:center;font-size:10px;color:#C7D2FE">{sim_ou_nao}</div>'
+            )
             if k is None:
                 arestas.append(_linha(px, py + 15, x, y - 15))
             else:
@@ -122,8 +146,7 @@ def html_arvore(nos: list[dict]) -> str:
             f'box-sizing:border-box;text-align:center;font-size:12px;padding:7px 4px;{fundo}">'
             f"{escape(texto)}{anel}</div>"
         )
-    legenda = "Árvore real do XGBoost (árvore 1). O sinal percorre o caminho do veículo; os demais nós ficam apagados."
-    return _documento("Caminho do veículo na árvore", 1000, 400, "".join(arestas + caixas), legenda)
+    return _documento("Caminho do veículo na árvore", 1000, 400, "".join(arestas + caixas + rotulos_aresta))
 
 
 def html_rede() -> str:
@@ -149,5 +172,4 @@ def html_rede() -> str:
         f'font-size:12px;color:#C7D2FE">{t}</div>'
         for x, t in zip(xs, ["48 entradas", "oculta 1", "oculta 2", "urbano · estrada"])
     ]
-    legenda = "Esquema ilustrativo; o número de neurônios não é o da rede real."
-    return _documento("Esquema da rede neural", 1000, 340, "".join(arestas + neuronios + rotulos), legenda)
+    return _documento("Esquema da rede neural", 1000, 340, "".join(arestas + neuronios + rotulos))

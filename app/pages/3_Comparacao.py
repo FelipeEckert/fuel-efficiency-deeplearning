@@ -10,18 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pasta app/, para
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from visual import CORES
+from visual import CORES, NOMES
 
 from eficiencia.dados import RAIZ
 from eficiencia.formato import numero
 
-NOMES = {
-    "linear": "Regressão linear",
-    "floresta": "Random Forest",
-    "xgboost": "XGBoost",
-    "rede_por_alvo": "Rede neural por alvo",
-    "rede_multi": "Rede neural multi-saída",
-}
 ORDEM_PROPULSAO = ["Combustão", "Híbrido", "Plug-in", "Elétrico"]  # as demais vêm depois, em ordem alfabética
 FIGURAS = {"erro_por_propulsao.png": "Erro por propulsão", "previsto_real.png": "Previsto × real do vencedor"}
 MAX_VIOLACOES = 10

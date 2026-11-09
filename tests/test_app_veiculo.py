@@ -197,6 +197,7 @@ def test_modelo_por_dentro_e_medidor(pacote_rapido):
     at = _pagina()
     assert not at.exception
     assert [t.label for t in at.tabs][-2:] == ["Árvore do XGBoost", "Rede neural"]
+    assert any("ilustrativo" in c.value for c in at.caption)
     assert "indicator" in at.get("plotly_chart")[0].proto.spec  # o medidor vem antes da explicação
 
 

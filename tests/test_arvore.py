@@ -38,3 +38,20 @@ def test_niveis_de_cima_completos_e_perguntas_legiveis():
         if not n["folha"]:
             assert n["coluna"] in ENTRADAS and "=" not in n["coluna"]
             assert (n["categoria"] is None) != (n["limite"] is None)
+
+
+def test_caminho_bate_com_pred_leaf_em_amostra_da_base():
+    m, df = _modelo()
+    amostra = pd.concat([g.sample(min(len(g), 40), random_state=0) for _, g in df.groupby("propulsao")])
+    validos, _ = validar(amostra[ENTRADAS])  # linhas da base que o app aceitaria
+    amostra = amostra.loc[validos.index]
+    assert len(amostra) >= 100 and amostra.propulsao.nunique() == 4
+    for alvo in ("mj_km_urbano", "mj_km_estrada"):
+        booster = m.estimadores[alvo].get_booster()
+        for _, linha in amostra.iterrows():
+            v = validos.loc[linha.name].to_dict()
+            nos = caminho_arvore(m, v, alvo)
+            folha = booster.predict(xgboost.DMatrix(m.prep.transform(pd.DataFrame([v]))), pred_leaf=True)[0][
+                0
+            ]
+            assert [n for n in nos if n["no_caminho"]][-1]["id"] == int(folha), alvo

@@ -70,13 +70,15 @@ def test_html_arvore_anima_so_o_caminho():
     h = html_arvore(NOS)
     assert h.count('class="part"') == 2  # duas arestas no caminho
     assert "Propulsão é Elétrico?" in h and "32 carros" in h
+    # NOS[1] é o Yes da pergunta numérica (sim), NOS[2] o No (não); NOS[4] é o No da pergunta de categoria (sim)
+    assert h.count(">sim<") == 2 and h.count(">não<") == 1
     assert "prefers-reduced-motion" in h and "overflow-x:auto" in h
 
 
 def test_html_rede_uma_particula_por_aresta():
     h = html_rede()
     assert h.count('class="part"') == 6 * 7 + 7 * 7 + 7 * 2
-    assert "esquema" in h.lower() and "prefers-reduced-motion" in h
+    assert "prefers-reduced-motion" in h
 
 
 def test_filhos_de_no_fora_do_caminho_nao_se_sobrepoem():

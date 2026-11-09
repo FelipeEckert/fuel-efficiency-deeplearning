@@ -22,7 +22,7 @@ CARTOES = [
         "pages/3_Comparacao.py",
         "Comparação",
         ":material/compare_arrows:",
-        "Compare os cenários que você salvou.",
+        "Compare os modelos candidatos do último treino.",
     ),
 ]
 for coluna, (pagina, rotulo, icone, frase) in zip(st.columns(3), CARTOES, strict=True):
