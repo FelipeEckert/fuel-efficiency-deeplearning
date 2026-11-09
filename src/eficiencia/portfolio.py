@@ -1,4 +1,4 @@
-"""Portfólio de veículos: MJ/km médio ponderado pelo volume, com valores reais ou estimados pelo modelo."""
+"""Vehicle portfolio: sales-weighted average MJ/km, using label values where known and model estimates otherwise."""
 
 import io
 import re
@@ -15,9 +15,9 @@ from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS
 from eficiencia.prever import prever
 
 COLUNAS_PORTFOLIO = ["nome", "volume", "mj_km_conhecido"] + [c for c in ENTRADAS if c != "bateria_estimada"]
-ROTULOS_PORTFOLIO = {"nome": "Nome", "volume": "Volume", "mj_km_conhecido": "MJ/km conhecido", **ROTULOS}
+ROTULOS_PORTFOLIO = {"nome": "Name", "volume": "Volume", "mj_km_conhecido": "Known MJ/km", **ROTULOS}
 OBRIGATORIAS = ("nome", "volume")
-NAO_INFORMADO = "não informado"
+NAO_INFORMADO = "not given"
 _CABECALHOS = {_chave(t): c for c in COLUNAS_PORTFOLIO for t in (c, ROTULOS_PORTFOLIO[c])}
 _COLUNAS_TABELA = [
     "nome",
@@ -31,12 +31,17 @@ _COLUNAS_TABELA = [
     "categoria",
 ]
 _MILHARES_PT = re.compile(r"\d{1,3}(\.\d{3})+(,\d+)?")  # "10.000" e "1.000,5"; "1.5" segue decimal
+_MILHARES_EN = re.compile(r"\d{1,3}(,\d{3})+(\.\d+)?")  # "10,000" e "1,000.5"; "1,5" segue decimal
 
 
 def _volume(valor) -> float | None:
-    """Volume: texto com ponto de milhar pt-BR vira milhar; o resto segue _numero (decimal com vírgula ou ponto)."""
-    if isinstance(valor, str) and _MILHARES_PT.fullmatch(valor.strip()):
-        valor = valor.strip().replace(".", "")
+    """Volume: thousands separators (10.000 or 10,000) are dropped; the rest follows _numero."""
+    if isinstance(valor, str):
+        texto = valor.strip()
+        if _MILHARES_PT.fullmatch(texto):
+            valor = texto.replace(".", "")
+        elif _MILHARES_EN.fullmatch(texto):
+            valor = texto.replace(",", "")
     return _numero(valor)
 
 
@@ -65,14 +70,14 @@ def ler_planilha(arquivo: bytes | BinaryIO) -> tuple[pd.DataFrame, list[str]]:
         bruto = pd.read_excel(io.BytesIO(arquivo) if isinstance(arquivo, bytes) else arquivo)
     except Exception as erro:  # noqa: BLE001 - qualquer falha de leitura vira mensagem, nunca exceção
         return pd.DataFrame(columns=COLUNAS_PORTFOLIO), [
-            f"não foi possível ler a planilha: {type(erro).__name__}"
+            f"could not read the spreadsheet: {type(erro).__name__}"
         ]
     origem: dict[str, object] = {}
     for coluna in bruto.columns:
         canonico = _CABECALHOS.get(_chave(str(coluna)))
         if canonico is not None and canonico not in origem:
             origem[canonico] = coluna
-    erros = [f"coluna obrigatória ausente: {ROTULOS_PORTFOLIO[c]}" for c in OBRIGATORIAS if c not in origem]
+    erros = [f"required column missing: {ROTULOS_PORTFOLIO[c]}" for c in OBRIGATORIAS if c not in origem]
     if erros:
         return pd.DataFrame(columns=COLUNAS_PORTFOLIO), erros
     df = pd.DataFrame(
@@ -109,7 +114,7 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
     for pos, bruto in enumerate(df.to_dict("records"), start=1):
         volume = _volume(bruto.get("volume"))
         if volume is None or volume <= 0:
-            erros.append(f"linha {pos}: volume deve ser maior que zero")
+            erros.append(f"row {pos}: volume must be greater than zero")
             continue
         tem_volume = True
         base = {"nome": bruto.get("nome"), "volume": volume}
@@ -118,11 +123,11 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
             valor, problema = _campo(coluna, bruto.get(coluna), False)
             base[coluna] = valor or NAO_INFORMADO
             if problema:
-                problemas_spec.append(f"linha {pos}: {ROTULOS[coluna]} {problema}")
+                problemas_spec.append(f"row {pos}: {ROTULOS[coluna]} {problema}")
         if not _vazio(bruto.get("mj_km_conhecido")):
             real = _numero(bruto.get("mj_km_conhecido"))
             if real is None or real <= 0:
-                erros.append(f"linha {pos}: MJ/km conhecido deve ser número maior que zero")
+                erros.append(f"row {pos}: known MJ/km must be a number greater than zero")
                 continue
             erros += problemas_spec
             linhas[pos] = {
@@ -141,7 +146,7 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
         a_estimar.append(ok)
         linhas[pos] = base
     if not tem_volume:
-        erros.append("nenhum veículo com volume válido")
+        erros.append("no vehicle with a valid volume")
     if a_estimar:
         if pacote is None:
             pacote = carregar()

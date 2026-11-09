@@ -32,5 +32,5 @@ def checar_monotonia(
             else:
                 violou = (b > a + _TOLERANCIA * np.abs(a)).any(axis=0)
             for linha in base.index[violou]:
-                mensagens.append(f"{alvo} viola monotonia em {coluna} (veículo de índice {linha})")
+                mensagens.append(f"{alvo} breaks monotonicity in {coluna} (vehicle at index {linha})")
     return mensagens

@@ -47,14 +47,14 @@ def _com_storage(storage: str | None, f):
 def melhores_params(nome: str, storage: str = STORAGE) -> dict:
     """best_params do estudo final do treino oficial para esta base."""
     if storage.startswith("sqlite:///") and not Path(storage.removeprefix("sqlite:///")).exists():
-        raise ValueError(f"banco não encontrado: {storage.removeprefix('sqlite:///')}")  # não cria um vazio
+        raise ValueError(f"database not found: {storage.removeprefix('sqlite:///')}")  # não cria um vazio
     nome_estudo = f"{prefixo_estudo(nome, hash8(carregar_base()))}-i3-s0-final"
 
     def ler(arm):
         try:
             return dict(optuna.load_study(study_name=nome_estudo, storage=arm).best_params)
         except KeyError:
-            raise ValueError(f"estudo não encontrado em {storage}: {nome_estudo}") from None
+            raise ValueError(f"study not found in {storage}: {nome_estudo}") from None
 
     return _com_storage(storage, ler)
 
@@ -222,12 +222,14 @@ def experimento_redes(
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Experimentos de otimização dos modelos (XGBoost e redes).")
+    parser = argparse.ArgumentParser(
+        description="Model optimization experiments (XGBoost, other boosting libraries and networks)."
+    )
     parser.add_argument("experimento", choices=["samplers", "cerca", "sementes", "redes", "boosting"])
     parser.add_argument(
-        "--tentativas", type=int, help="tentativas do Optuna (padrão: 50 samplers, 100 cerca e boosting)"
+        "--tentativas", type=int, help="Optuna trials (default: 50 for samplers, 100 for cerca and boosting)"
     )
-    parser.add_argument("--rapido", action="store_true", help="2 dobras, parâmetros rápidos, sem banco")
+    parser.add_argument("--rapido", action="store_true", help="2 folds, fast parameters, no database")
     args = parser.parse_args(argv)
     if args.experimento in ("sementes", "redes"):
         nome = "xgboost" if args.experimento == "sementes" else "rede_por_alvo"

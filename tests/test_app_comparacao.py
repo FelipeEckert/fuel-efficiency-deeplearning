@@ -5,7 +5,7 @@ from streamlit.testing.v1 import AppTest
 
 PAGINA = Path(__file__).resolve().parents[1] / "app/pages/3_Comparacao.py"
 MSG_CORROMPIDO = (
-    "Relatório de treino incompleto ou corrompido. Rode o treino de novo: uv run eficiencia-treinar"
+    "The training report is incomplete or corrupted. Run the training again: uv run eficiencia-treinar"
 )
 
 
@@ -59,28 +59,28 @@ def _metricas_completas():
 def test_comparacao_tabela_vencedor_e_violacoes(tmp_path, monkeypatch):
     at = _relatorio(tmp_path, monkeypatch, json.dumps(_metricas_completas()))
     assert not at.exception
-    assert at.success[0].value == "Vencedor: XGBoost — 6,8 % de erro médio no MJ/km"
+    assert at.success[0].value == "Selected: XGBoost, 6.8 % mean error on MJ/km"
 
     tabela = at.dataframe[0].value
-    assert list(tabela["Modelo"]) == ["🏆 XGBoost", "Random Forest", "Regressão linear"]
-    assert list(tabela["Erro geral (%)"]) == ["6,8", "9,1", "20,5"]
+    assert list(tabela["Model"]) == ["🏆 XGBoost", "Random forest", "Linear regression"]
+    assert list(tabela["Overall error (%)"]) == ["6.8", "9.1", "20.5"]
     assert list(tabela.columns) == [
-        "Modelo",
-        "Erro geral (%)",
-        "Combustão (%)",
-        "Híbrido (%)",
-        "Elétrico (%)",
-        "Monotonia",
-        "Tentativas",
+        "Model",
+        "Overall error (%)",
+        "Combustion (%)",
+        "Hybrid (%)",
+        "Electric (%)",
+        "Monotonicity",
+        "Trials",
     ]
     # Random Forest não tem Híbrido: célula com travessão
-    assert tabela.loc[1, "Híbrido (%)"] == "—"
-    assert tabela.loc[2, "Monotonia"] == "❌ reprovado"
+    assert tabela.loc[1, "Hybrid (%)"] == "—"
+    assert tabela.loc[2, "Monotonicity"] == "❌ fail"
 
-    expander = next(e for e in at.expander if "Regressão linear" in e.label)
+    expander = next(e for e in at.expander if "Linear regression" in e.label)
     textos = [t.value for t in expander.get("text")]
     assert textos == ["\n".join(f"violação {i}" for i in range(10))]
-    assert any("e mais 2" in m.value for m in expander.get("markdown"))
+    assert any("and 2 more" in m.value for m in expander.get("markdown"))
 
 
 def test_comparacao_relatorio_corrompido(tmp_path, monkeypatch):
@@ -100,7 +100,7 @@ def test_comparacao_sem_vencedor(tmp_path, monkeypatch):
     metricas["vencedor"] = None
     at = _relatorio(tmp_path, monkeypatch, json.dumps(metricas))
     assert not at.exception and not at.error
-    assert at.warning[0].value == "Nenhum modelo passou no teste de monotonia neste treino."
+    assert at.warning[0].value == "No model passed the monotonicity check in this training run."
     assert len(at.dataframe[0].value) == 3
 
 

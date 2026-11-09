@@ -38,12 +38,12 @@ def test_entrada_invalida_levanta_todas_as_mensagens(pacote_rapido):
     with pytest.raises(ValueError) as erro:
         prever(veiculo(f2_n_kmh2=-0.01, potencia_kw=0), pacote_rapido)
     linhas = str(erro.value).split("\n")
-    assert len(linhas) == 2 and all(linha.startswith("linha 1: ") for linha in linhas)
+    assert len(linhas) == 2 and all(linha.startswith("row 1: ") for linha in linhas)
 
 
 def test_varias_linhas_mantem_indice_original(pacote_rapido):
     df = pd.DataFrame([veiculo(), veiculo(propulsao="Elétrico", combustivel="gasolina")], index=[10, 20])
-    with pytest.raises(ValueError, match="linha 2: Combustível"):
+    with pytest.raises(ValueError, match="row 2: Fuel"):
         prever(df, pacote_rapido)
     r = prever(df.iloc[[0]], pacote_rapido)
     assert list(r.index) == [10]

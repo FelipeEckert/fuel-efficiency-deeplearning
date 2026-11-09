@@ -65,7 +65,7 @@ def _estudo(
     semente_sampler: int | None = None,
 ) -> optuna.Study:
     if sampler not in SAMPLERS:
-        raise ValueError(f"sampler desconhecido: {sampler}")
+        raise ValueError(f"unknown sampler: {sampler}")
     cls = (CANDIDATOS | EXPERIMENTAIS)[nome]
     estudo = optuna.create_study(
         study_name=nome_estudo,

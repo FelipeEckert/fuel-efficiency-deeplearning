@@ -1,32 +1,35 @@
-# Relatório de treino: eficiência energética
+# Training report: vehicle energy efficiency
 
-Data: 2026-11-05 · hash da base: `dd888117`
+Date: 2026-11-05 · data hash: `dd888117`
 
-**Vencedor: xgboost**, o de menor erro entre os que passam no teste de monotonia.
-Hiperparâmetros: `{'n_estimators': 969, 'max_depth': 5, 'learning_rate': 0.032637691707401356, 'subsample': 0.6437132638022895, 'colsample_bytree': 0.5795595752000016, 'min_child_weight': 5, 'reg_lambda': 0.002883631811041725}`
+**Selected model: XGBoost**, the lowest error among the candidates that pass the monotonicity check.
 
-## Candidatos
+Hyperparameters: `{'n_estimators': 969, 'max_depth': 5, 'learning_rate': 0.032637691707401356, 'subsample': 0.6437132638022895, 'colsample_bytree': 0.5795595752000016, 'min_child_weight': 5, 'reg_lambda': 0.002883631811041725}`
 
-| Candidato | Erro MJ/km | Monotonia | Tentativas |
+Errors are the mean absolute percentage error on combined MJ/km, out of sample (nested cross-validation grouped by model family).
+
+## Candidates
+
+| Candidate | MJ/km error | Monotonicity | Trials |
 |---|---|---|---|
-| linear | 7,52 % | aprovado | 900 |
-| floresta | 7,02 % | aprovado | 674 |
-| xgboost | 5,77 % | aprovado | 600 |
-| rede_por_alvo | 7,16 % | aprovado | 301 |
-| rede_multi | 7,72 % | aprovado | 300 |
+| Linear regression | 7.52 % | pass | 900 |
+| Random forest | 7.02 % | pass | 674 |
+| XGBoost | 5.77 % | pass | 600 |
+| Neural network, one per target | 7.16 % | pass | 301 |
+| Neural network, multi-output | 7.72 % | pass | 300 |
 
-## Erro por propulsão (MJ/km)
+## Error by powertrain (MJ/km)
 
-| Candidato | Combustão | Elétrico | Híbrido | Plug-in |
+| Candidate | Combustion | Electric | Hybrid | Plug-in hybrid |
 |---|---|---|---|---|
-| linear | 6,04 % | 7,39 % | 7,31 % | 16,57 % |
-| floresta | 5,36 % | 4,8 % | 11,47 % | 15,83 % |
-| xgboost | 4,63 % | 4,92 % | 7,61 % | 11,84 % |
-| rede_por_alvo | 5,81 % | 5,55 % | 8,68 % | 16,59 % |
-| rede_multi | 6,12 % | 6,71 % | 9 % | 17,53 % |
+| Linear regression | 6.04 % | 7.39 % | 7.31 % | 16.57 % |
+| Random forest | 5.36 % | 4.8 % | 11.47 % | 15.83 % |
+| XGBoost | 4.63 % | 4.92 % | 7.61 % | 11.84 % |
+| Neural network, one per target | 5.81 % | 5.55 % | 8.68 % | 16.59 % |
+| Neural network, multi-output | 6.12 % | 6.71 % | 9 % | 17.53 % |
 
-## Figuras
+## Figures
 
-![Erro por propulsão](figuras/erro_por_propulsao.png)
+![Error by powertrain](figuras/erro_por_propulsao.png)
 
-![Previsto × real do vencedor](figuras/previsto_real.png)
+![Predicted vs. label MJ/km for the selected model](figuras/previsto_real.png)

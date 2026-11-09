@@ -1,10 +1,11 @@
-"""HTML animado (CSS) da árvore real do XGBoost e do esquema da rede neural, para st.iframe. As legendas ficam na página."""
+"""Animated (CSS) HTML of the real XGBoost tree and of the neural network sketch, for st.iframe. Captions live on the page."""
 
 import math
 from html import escape
 
-from eficiencia.esquema import ROTULOS
+from eficiencia.esquema import ROTULOS, nome_valor
 from eficiencia.formato import numero
+from eficiencia.modelos import NOMES_MODELOS
 
 CORES = {
     "primaria": "#7C3AED",
@@ -17,13 +18,7 @@ CORES = {
     "lilas": "#A78BFA",
 }
 
-NOMES = {  # nome legível de cada algoritmo candidato
-    "linear": "Regressão linear",
-    "floresta": "Random Forest",
-    "xgboost": "XGBoost",
-    "rede_por_alvo": "Rede neural por alvo",
-    "rede_multi": "Rede neural multi-saída",
-}
+NOMES = NOMES_MODELOS  # display name of each candidate
 
 _CASAS = {
     "f0_n": 1,
@@ -56,7 +51,7 @@ def pergunta(no: dict) -> str:
     """Texto da pergunta de um nó interno da árvore."""
     rotulo = ROTULOS[no["coluna"]]
     if no["categoria"] is not None:
-        return f"{rotulo} é {no['categoria']}?"
+        return f"{rotulo} is {nome_valor(no['coluna'], no['categoria'])}?"
     return f"{rotulo} < {numero(no['limite'], _CASAS.get(no['coluna'], 0))}?"
 
 
@@ -73,8 +68,8 @@ def _linha(x1, y1, x2, y2, cor="#3730A3", esp=1.5, filho="", vars_=""):
 
 def _documento(rotulo: str, largura: int, altura: int, miolo: str) -> str:
     return (
-        f'<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>{_CSS}</style></head><body>'
-        "<button onclick=\"document.body.classList.toggle('pausado')\">Pausar animação</button>"
+        f'<!doctype html><html lang="en"><head><meta charset="utf-8"><style>{_CSS}</style></head><body>'
+        "<button onclick=\"document.body.classList.toggle('pausado')\">Pause animation</button>"
         f'<div style="overflow-x:auto" role="img" aria-label="{escape(rotulo)}">'
         f'<div style="position:relative;width:{largura}px;height:{altura}px">{miolo}</div></div>'
         "</body></html>"
@@ -116,7 +111,7 @@ def html_arvore(nos: list[dict]) -> str:
         if n["pai"] is not None:
             px, py = pos[n["pai"]]
             # categoria: o Yes do XGBoost é x < 1, ou seja, "não é a categoria"
-            sim_ou_nao = "sim" if yes[n["id"]] != (por_id[n["pai"]]["categoria"] is not None) else "não"
+            sim_ou_nao = "yes" if yes[n["id"]] != (por_id[n["pai"]]["categoria"] is not None) else "no"
             rotulos_aresta.append(
                 f'<div style="position:absolute;left:{(px + x) / 2 - 15:.1f}px;top:{(py + y) / 2 - 8:.1f}px;'
                 f'width:30px;text-align:center;font-size:10px;color:#C7D2FE">{sim_ou_nao}</div>'
@@ -129,7 +124,7 @@ def html_arvore(nos: list[dict]) -> str:
                 arestas.append(_linha(px, py + 15, x, y - 15, "rgba(34,211,238,.55)", 3, part, vars_))
         if n["folha"]:
             sinal = "+" if n["valor"] >= 0 else "−"
-            texto = f"folha · {n['carros']} carros · {sinal}{numero(abs(n['valor']), 4)}"
+            texto = f"leaf · {n['carros']} cars · {sinal}{numero(abs(n['valor']), 4)}"
             fundo, larg = "background:#A78BFA;color:#1E1B4B;font-weight:700;border-radius:999px;", 210
         else:
             texto, larg = pergunta(n), 150
@@ -146,7 +141,7 @@ def html_arvore(nos: list[dict]) -> str:
             f'box-sizing:border-box;text-align:center;font-size:12px;padding:7px 4px;{fundo}">'
             f"{escape(texto)}{anel}</div>"
         )
-    return _documento("Caminho do veículo na árvore", 1000, 400, "".join(arestas + caixas + rotulos_aresta))
+    return _documento("Vehicle path through the tree", 1000, 400, "".join(arestas + caixas + rotulos_aresta))
 
 
 def html_rede() -> str:
@@ -170,6 +165,6 @@ def html_rede() -> str:
     rotulos = [
         f'<div style="position:absolute;left:{x - 80}px;top:310px;width:160px;text-align:center;'
         f'font-size:12px;color:#C7D2FE">{t}</div>'
-        for x, t in zip(xs, ["48 entradas", "oculta 1", "oculta 2", "urbano · estrada"])
+        for x, t in zip(xs, ["48 inputs", "hidden 1", "hidden 2", "city · highway"])
     ]
-    return _documento("Esquema da rede neural", 1000, 340, "".join(arestas + neuronios + rotulos))
+    return _documento("Neural network sketch", 1000, 340, "".join(arestas + neuronios + rotulos))

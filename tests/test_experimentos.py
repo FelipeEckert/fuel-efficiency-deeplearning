@@ -73,7 +73,7 @@ def test_redes_rapido(tmp_path, monkeypatch):
 
 def test_melhores_params_sem_banco_nao_cria_nada(tmp_path):
     caminho = tmp_path / "optuna" / "estudos.db"
-    with pytest.raises(ValueError, match="banco não encontrado"):
+    with pytest.raises(ValueError, match="database not found"):
         experimentos.melhores_params("xgboost", storage=f"sqlite:///{caminho.as_posix()}")
     assert not caminho.parent.exists()
 
@@ -81,6 +81,6 @@ def test_melhores_params_sem_banco_nao_cria_nada(tmp_path):
 def test_melhores_params_pasta_sem_banco(tmp_path):
     caminho = tmp_path / "optuna" / "estudos.db"
     caminho.parent.mkdir()
-    with pytest.raises(ValueError, match="banco não encontrado"):
+    with pytest.raises(ValueError, match="database not found"):
         experimentos.melhores_params("xgboost", storage=f"sqlite:///{caminho.as_posix()}")
     assert not caminho.exists()

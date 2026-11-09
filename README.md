@@ -37,11 +37,15 @@ Full training report: [`relatorios/relatorio.md`](relatorios/relatorio.md). Opti
 
 ## The app
 
+![Vehicle page: estimate, uncertainty range and what-if controls](docs/app_vehicle.png)
+
 | Page | What it does |
 |---|---|
 | Vehicle | Estimate one vehicle, see the uncertainty range and the explanation, and compare "what if" scenarios (for example, 80 kg lighter). |
 | Portfolio | Estimate several vehicles at once and compute the sales-weighted average consumption. Tables can be edited in the app or uploaded and downloaded as files. |
 | Comparison | Compare the candidates from the latest training run: overall error, error by powertrain, monotonicity check and number of trials. |
+
+![Comparison page: candidates from the latest training run](docs/app_comparison.png)
 
 ## Getting started
 
@@ -113,6 +117,10 @@ modelos/vencedor/     versioned winning model
 relatorios/           training report, figures and experiment results
 tests/                pytest suite
 ```
+
+## Language
+
+The interface, reports and documentation are in English. Identifiers and code comments are in Portuguese, and the data keeps the original PBEV codes (for example, `Combustão` or `gasolina`), which the app shows with English names. Uploaded portfolio tables accept both the codes and the English names.
 
 ## Stack
 
