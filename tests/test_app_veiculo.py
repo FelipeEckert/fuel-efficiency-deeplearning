@@ -1,4 +1,5 @@
 import io
+import json
 import re
 import sys
 from pathlib import Path
@@ -6,7 +7,8 @@ from pathlib import Path
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 
-from eficiencia.esquema import ENTRADAS, carregar_base
+from eficiencia.esquema import ENTRADAS, ROTULOS, carregar_base
+from eficiencia.explicar import explicavel
 from eficiencia.fisica import classe_inercia
 from eficiencia.prever import prever
 
@@ -34,8 +36,12 @@ def test_explicacao_sem_erro_nos_dois_ciclos(pacote_rapido):
     at = _pagina()
     assert any(s.value == "Por que este valor?" for s in at.subheader)
     radios = [r for r in at.radio if r.key == "shap_ciclo"]  # sem radio quando o vencedor não é XGBoost
+    assert bool(radios) == explicavel(pacote_rapido.modelo)
     if radios:
         radios[0].set_value("estrada").run()
+        rotulos = json.loads(at.get("plotly_chart")[0].proto.spec)["data"][0]["y"]
+        assert "Tipo de propulsão" in rotulos and "Demais entradas" in rotulos
+        assert ROTULOS["bateria_kwh"] not in rotulos
     assert not at.exception
 
 

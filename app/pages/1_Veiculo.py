@@ -91,18 +91,30 @@ def _explicacao(pacote, veiculo: dict) -> None:
         validar(pd.DataFrame([veiculo]))[0].iloc[0].to_dict()
     )  # completa a bateria_estimada, como o prever
     base, contribuicoes = explicar(pacote.modelo, normalizado, f"mj_km_{ciclo}")
+    # entrar como eletrificado espalha o efeito por entradas que o validar zera; junta numa linha só
+    junta = ["propulsao", "combustivel", "bateria_kwh", "bateria_estimada"]
+    if normalizado["cilindrada_cm3"] == 0:
+        junta.append("cilindrada_cm3")
+    rotulos = ROTULOS | {"propulsao_grupo": "Tipo de propulsão", "demais": "Demais entradas"}
+    log = contribuicoes.drop(junta)
+    log["propulsao_grupo"] = contribuicoes[junta].sum()
+    top = log.reindex(log.abs().nlargest(8).index)
+    top["demais"] = log.drop(top.index).sum()  # o que sobra, para os efeitos fecharem na previsão
+    efeitos = ((np.exp(top) - 1) * 100).iloc[::-1]  # maior no topo do gráfico, "Demais entradas" embaixo
     st.caption(
-        f"Veículo médio da base: {_fixo(math.exp(base), 2)} MJ/km. Cada barra é o quanto a entrada "
-        "aumenta (+) ou reduz (−) o consumo em relação a ele; os efeitos se multiplicam."
+        f"Veículo médio da base: {_fixo(math.exp(base), 2)} MJ/km × efeitos = "
+        f"{_fixo(math.exp(base + contribuicoes.sum()), 2)} MJ/km. Cada barra é o quanto a entrada "
+        "aumenta (+) ou reduz (−) o consumo em relação a ele; os efeitos se multiplicam. "
+        '"Tipo de propulsão" junta propulsão, combustível e bateria (e a cilindrada zero dos elétricos).'
     )
-    efeitos = (np.exp(contribuicoes) - 1) * 100
-    efeitos = efeitos.reindex(efeitos.abs().nlargest(8).index).iloc[::-1]  # maior no topo do gráfico
     fig = go.Figure(
         go.Bar(
             x=efeitos.values,
-            y=[ROTULOS.get(e, e) for e in efeitos.index],
+            y=[rotulos.get(e, e) for e in efeitos.index],
             orientation="h",
             marker_color=["#c0392b" if v > 0 else "#27ae60" for v in efeitos.values],
+            texttemplate="%{x:+.1f} %",
+            hovertemplate="%{y}: %{x:+.1f} %<extra></extra>",
         )
     )
     fig.update_layout(xaxis_title="efeito no MJ/km (%)", separators=",.", height=360, margin={"t": 30})
