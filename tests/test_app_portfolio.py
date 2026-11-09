@@ -117,3 +117,9 @@ def test_caption_de_inclusao_e_linha_sem_nome(pacote_rapido):
     at = _pagina(_tabela([(None, 100, 1.5), ("B", 300, 2.0)]))
     por_veiculo = next(d.value for d in at.dataframe if "Nome" in d.value.columns)
     assert list(por_veiculo["Nome"]) == ["linha 1", "B"]
+
+
+def test_grafico_por_propulsao(pacote_rapido):
+    at = _pagina(_tabela([("Carro A", 100, 1.5), ("Carro B", 300, 2.0)]))
+    assert not at.exception
+    assert len(at.get("plotly_chart")) >= 1

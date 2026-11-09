@@ -102,3 +102,9 @@ def test_comparacao_sem_vencedor(tmp_path, monkeypatch):
     assert not at.exception and not at.error
     assert at.warning[0].value == "Nenhum modelo passou no teste de monotonia neste treino."
     assert len(at.dataframe[0].value) == 3
+
+
+def test_grafico_de_erro_por_candidato(tmp_path, monkeypatch):
+    at = _relatorio(tmp_path, monkeypatch, json.dumps(_metricas_completas()))
+    assert not at.exception
+    assert len(at.get("plotly_chart")) >= 1
