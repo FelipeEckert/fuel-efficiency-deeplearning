@@ -39,7 +39,7 @@ def test_explicacao_sem_erro_nos_dois_ciclos(pacote_rapido):
     assert bool(radios) == explicavel(pacote_rapido.modelo)
     if radios:
         radios[0].set_value("estrada").run()
-        rotulos = json.loads(at.get("plotly_chart")[0].proto.spec)["data"][0]["y"]
+        rotulos = json.loads(at.get("plotly_chart")[1].proto.spec)["data"][0]["y"]
         assert "Tipo de propulsão" in rotulos and "Demais entradas" in rotulos
         assert ROTULOS["bateria_kwh"] not in rotulos
     assert not at.exception
@@ -178,3 +178,31 @@ def test_modelo_recarrega_quando_o_arquivo_muda(pacote_rapido, monkeypatch):
     os.utime(arquivo, (arquivo.stat().st_atime, arquivo.stat().st_mtime + 60))  # treino novo
     formulario.modelo()
     assert len(chamadas) == 2
+
+
+def test_preset_e_voltar_ao_original(pacote_rapido):
+    at = _pagina()
+    at.button(key="preset_pacote").click().run()
+    assert (at.session_state["es_massa"], at.session_state["es_f0"], at.session_state["es_f2"]) == (
+        -10,
+        -10,
+        -10,
+    )
+    assert _metrica(at, "MJ/km com as mudanças").delta  # mudou em relação ao original
+    at.button(key="zerar_simulador").click().run()
+    assert at.session_state["es_massa"] == at.session_state["es_f0"] == at.session_state["es_f2"] == 0
+
+
+def test_modelo_por_dentro_e_medidor(pacote_rapido):
+    at = _pagina()
+    assert not at.exception
+    assert [t.label for t in at.tabs][-2:] == ["Árvore do XGBoost", "Rede neural"]
+    assert "indicator" in at.get("plotly_chart")[0].proto.spec  # o medidor vem antes da explicação
+
+
+def test_eletrico_roda_simulador(pacote_rapido):
+    at = _pagina()
+    at.selectbox(key="veiculo_propulsao").set_value("Elétrico").run()
+    at.number_input(key="veiculo_bateria_kwh").set_value(60.0).run()
+    at.button(key="preset_aliviar").click().run()
+    assert not at.exception
