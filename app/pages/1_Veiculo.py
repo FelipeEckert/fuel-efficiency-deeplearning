@@ -91,12 +91,10 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
         st.caption("A explicação por entrada está disponível só para o modelo XGBoost.")
         return None
     ciclo = st.radio("Ciclo", ["urbano", "estrada"], horizontal=True, key="shap_ciclo")
-    normalizado = (
-        validar(pd.DataFrame([veiculo]))[0].iloc[0].to_dict()
-    )  # completa a bateria_estimada, como o prever
+    normalizado = validar(pd.DataFrame([veiculo]))[0].iloc[0].to_dict()  # zera o que não vale, como o prever
     base, contribuicoes = explicar(pacote.modelo, normalizado, f"mj_km_{ciclo}")
     # entrar como eletrificado espalha o efeito por entradas que o validar zera; junta numa linha só
-    junta = ["propulsao", "combustivel", "bateria_kwh"]
+    junta = ["propulsao", "combustivel", "bateria_kwh", "autonomia_eletrica_km"]
     if normalizado["cilindrada_cm3"] == 0:
         junta.append("cilindrada_cm3")
     rotulos = ROTULOS | {"propulsao_grupo": "Tipo de propulsão", "demais": "Demais entradas"}
@@ -109,7 +107,7 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
         f"Veículo médio da base: {_fixo(math.exp(base), 2)} MJ/km × efeitos = "
         f"{_fixo(math.exp(base + contribuicoes.sum()), 2)} MJ/km. Cada barra é o quanto a entrada "
         "aumenta (+) ou reduz (−) o consumo em relação a ele; os efeitos se multiplicam. "
-        '"Tipo de propulsão" junta propulsão, combustível e bateria (e a cilindrada zero dos elétricos).'
+        '"Tipo de propulsão" junta propulsão, combustível, bateria e autonomia elétrica (e a cilindrada zero dos elétricos).'
     )
     fig = go.Figure(
         go.Bar(

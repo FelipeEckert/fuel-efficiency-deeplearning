@@ -30,7 +30,10 @@ def test_eletrico_km_l_equivalente(pacote_rapido):
 
 
 def test_combinacao_inedita_avisa(pacote_rapido):
-    r = prever(veiculo(propulsao="Plug-in", combustivel="diesel", bateria_kwh=20), pacote_rapido).iloc[0]
+    r = prever(
+        veiculo(propulsao="Plug-in", combustivel="diesel", bateria_kwh=20, autonomia_eletrica_km=40),
+        pacote_rapido,
+    ).iloc[0]
     assert r["avisos"] and np.isfinite(r["mj_km"]) and np.isfinite(r["kml_diesel"])
 
 
@@ -52,7 +55,12 @@ def test_varias_linhas_mantem_indice_original(pacote_rapido):
 def test_quantil_grande_nao_gera_faixa_invalida(pacote_rapido):
     quantis = {p: {s: 1.5 for s in d} for p, d in pacote_rapido.quantis.items()}
     pacote = replace(pacote_rapido, quantis=quantis)
-    df = pd.DataFrame([veiculo(), veiculo(propulsao="Elétrico", combustivel="eletrico", bateria_kwh=100)])
+    df = pd.DataFrame(
+        [
+            veiculo(),
+            veiculo(propulsao="Elétrico", combustivel="eletrico", bateria_kwh=100, autonomia_eletrica_km=400),
+        ]
+    )
     r = prever(df, pacote)
     for coluna in r.columns:
         if coluna.endswith(("_min", "_max")):

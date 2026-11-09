@@ -45,6 +45,19 @@ def test_explicacao_sem_erro_nos_dois_ciclos(pacote_rapido):
     assert not at.exception
 
 
+def test_plug_in_com_autonomia_calcula_e_soma_na_propulsao(pacote_rapido):
+    at = _pagina()
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    assert at.session_state["veiculo_autonomia_eletrica_km"] > 0  # mediana dos Plug-in da base
+    at.number_input(key="veiculo_bateria_kwh").set_value(12.0).run()
+    assert not at.exception and any("MJ/km" in m.label for m in at.metric)
+    if explicavel(pacote_rapido.modelo):
+        rotulos = json.loads(at.get("plotly_chart")[1].proto.spec)["data"][0]["y"]
+        assert ROTULOS["autonomia_eletrica_km"] not in rotulos
+    at.selectbox(key="veiculo_propulsao").set_value("Combustão").run()
+    assert not at.exception
+
+
 def test_salvar_cenario(pacote_rapido):
     at = _pagina()
     at.button(key="salvar_cenario").click().run()

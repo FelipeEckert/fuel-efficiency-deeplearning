@@ -38,7 +38,15 @@ def test_coerencia_propulsao():
 def test_eletrico_dispensa_cilindrada():
     ok, erros = validar(
         pd.DataFrame(
-            [veiculo(propulsao="Elétrico", combustivel="eletrico", cilindrada_cm3=None, bateria_kwh=100)]
+            [
+                veiculo(
+                    propulsao="Elétrico",
+                    combustivel="eletrico",
+                    cilindrada_cm3=None,
+                    bateria_kwh=100,
+                    autonomia_eletrica_km=400,
+                )
+            ]
         )
     )
     assert erros == [] and ok.iloc[0]["cilindrada_cm3"] == 0
@@ -52,8 +60,18 @@ def test_booleano_nao_e_numero():
 def test_minimos_por_propulsao():
     _, erros = validar(pd.DataFrame([veiculo(propulsao="Combustão", cilindrada_cm3=0)]))
     assert erros == ["linha 1: Cilindrada (cm³) deve ser maior que zero para propulsão Combustão"]
-    _, erros = validar(pd.DataFrame([veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=0)]))
+    _, erros = validar(
+        pd.DataFrame(
+            [veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=0, autonomia_eletrica_km=50)]
+        )
+    )
     assert erros == ["linha 1: Bateria (kWh) deve ser maior que zero para propulsão Plug-in"]
+    _, erros = validar(
+        pd.DataFrame(
+            [veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=10, autonomia_eletrica_km=0)]
+        )
+    )
+    assert erros == ["linha 1: Autonomia elétrica (km) deve ser maior que zero para propulsão Plug-in"]
 
 
 def test_autonomia_eletrica_obrigatoria_em_recarregaveis():

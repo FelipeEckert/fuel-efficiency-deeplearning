@@ -102,6 +102,7 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
         for campo, propulsoes in (
             ("cilindrada_cm3", ("Combustão", "Híbrido", "Plug-in")),
             ("bateria_kwh", ("Híbrido", "Plug-in", "Elétrico")),
+            ("autonomia_eletrica_km", ("Plug-in", "Elétrico")),
         ):
             valor = limpo.get(campo)
             if prop in propulsoes and isinstance(valor, float) and not math.isnan(valor) and valor <= 0:

@@ -124,6 +124,13 @@ def test_propulsao_invalida_em_linha_real_e_reportada():
     assert set(r.por_propulsao["propulsao"]) == {"não informado"}
 
 
+def test_plug_in_sem_coluna_de_autonomia_e_erro_claro(pacote_rapido):
+    v = carregar_base().query('propulsao == "Plug-in"')[ENTRADAS].iloc[0].to_dict()
+    v.pop("autonomia_eletrica_km")
+    r = media_portfolio(pd.DataFrame([{"nome": "PHEV", "volume": 100, **v}]), pacote_rapido)
+    assert r.erros == ["linha 1: Autonomia elétrica (km) obrigatório"]
+
+
 def test_ler_planilha_canoniza_categoricas_e_mantem_desconhecidas():
     buf = io.BytesIO()
     pd.DataFrame(
