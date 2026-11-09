@@ -1,11 +1,11 @@
 # Conclusões dos experimentos de otimização
 
-Experimentos do plano [2026-11-05-investigacao-otimizacao.md](../../docs/superpowers/plans/2026-11-05-investigacao-otimizacao.md), rodados de 06/11 08:24 a 07/11 06:36 em `fuel_treino`. Os resultados brutos estão nos `.json` desta pasta.
+Experimentos do plano [2026-11-05-investigacao-otimizacao.md](../../docs/superpowers/plans/2026-11-05-investigacao-otimizacao.md), rodados de 06/11 08:24 a 07/11 06:36 em `fuel_treino`. O teste de CatBoost e LightGBM veio depois, de 07/11 10:40 a 08/11 20:48. Os resultados brutos estão nos `.json` desta pasta.
 
 **Resumo:** nenhuma hipótese passou com folga no critério de 2 desvios-padrão.
 - O XGBoost publicado (5,77 %) continua sendo o modelo e não muda.
 - A busca já estava convergida, e os erros que ficaram parados vêm sobretudo do limite dos dados e do ruído das sementes.
-- O próximo teste que faz sentido é outro algoritmo de boosting, começando pelo CatBoost.
+- CatBoost (5,72 %) e LightGBM (5,80 %) empataram com o XGBoost. Três algoritmos de boosting diferentes param no mesmo ponto, perto de 5,7 %. Esse parece ser o limite destes dados com estas entradas.
 
 Todos os erros são o erro percentual médio em MJ/km, na CV externa com 5 dobras por grupo.
 
@@ -142,14 +142,55 @@ Grade fixa de `lr` com a semente 0. O `lr` da rodada 3 é 0,00052, e com ele a r
 
 **Veredito: rejeitada.** Entre 0,0003 e 0,003 o erro fica num platô (6,68 a 6,82 %), e o `lr` escolhido está no meio dele. Só os extremos pioram, sobretudo 0,01 (+1,3 ponto).
 
+## H7: outro algoritmo de boosting passa o XGBoost
+
+CatBoost e LightGBM na mesma CV aninhada do XGBoost oficial, com 100 tentativas por estudo. Os dois usam a mesma monotonia do XGBoost: o consumo só pode subir com a massa, o F0, o F2 etc. Ficam fora do treino oficial (`EXPERIMENTAIS`).
+
+| Modelo | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+|---|---|---|---|---|---|
+| XGBoost oficial | 5,77 | 4,63 | 4,92 | 7,61 | 11,84 |
+| CatBoost | 5,72 | 4,54 | 5,13 | 7,23 | 11,87 |
+| LightGBM | 5,80 | 4,57 | 4,84 | 7,07 | 13,38 |
+
+**Veredito: não confirmada.** Contra o XGBoost oficial, o CatBoost melhora 0,05 ponto e o LightGBM piora 0,03. Os dois ficam dentro do ruído da busca (0,07 ponto) e do ruído da semente do modelo (0,22 ponto).
+- O CatBoost também fica junto da média das 3 sementes do TPE com o XGBoost (5,73 %) e da faixa ampla (5,69 %).
+- O LightGBM erra mais no Plug-in (13,4 % contra 11,8 %), mas o Plug-in tem só 50 carros, então esse número é o mais ruidoso da tabela.
+
+**O que as buscas escolheram:**
+- **CatBoost:** árvores rasas, com profundidade 4 a 6 e 490 a 1.900 iterações.
+- **LightGBM:** de 15 a 63 folhas, de 950 a 1.930 árvores, e taxa de aprendizado baixa (0,012 a 0,034).
+
+As dobras chegaram a combinações bem diferentes com erros parecidos, o mesmo platô visto no H2.
+
+**Bordas** (parâmetro a menos de 5 % do limite da faixa):
+
+| Dobra | CatBoost | LightGBM |
+|---|---|---|
+| 1 | nenhuma | `reg_lambda` = 0,001 (mínimo 0,001) |
+| 2 | nenhuma | `num_leaves` = 63 (máximo 64) |
+| 3 | nenhuma | `n_estimators` = 1.930 (máximo 2.000), `min_child_samples` = 2 (mínimo) |
+| 4 | `random_strength` = 9,7 (máximo 10) | nenhuma |
+| 5 | `iterations` = 1.916 (máximo 2.000), `learning_rate` = 0,28 (máximo 0,3) | `min_child_samples` = 3 (mínimo 2) |
+
+- **CatBoost:** nenhum parâmetro encosta no limite em mais de uma dobra.
+- **LightGBM:** o `min_child_samples` (o mínimo de carros por folha) fica no piso em duas dobras. Ele pede folhas menores do que a faixa permite.
+
+Alargar essa faixa pode render alguma coisa. Mas o XGBoost com faixa ampla (H2) ganhou só 0,08 ponto, então o esperado é um ganho pequeno.
+
+**Monotonia:** os 10 conjuntos de parâmetros (5 dobras × 2 modelos), treinados na base inteira, passaram em `checar_monotonia` sem nenhuma violação.
+
+**Custo:** com 500 tentativas cada, o CatBoost levou 15h25 e o LightGBM 18h40. A 5ª dobra do CatBoost sozinha levou 11h, porque a busca passou muito tempo em árvores fundas (profundidade 6–7) com quase 2.000 iterações.
+
 ## O que fica para depois
 
 Cada item seria um plano e um PR próprios. Nada muda no modelo publicado por causa destes experimentos.
 
-1. **Testar o CatBoost, e depois o LightGBM.** A condição do plano se cumpriu, porque a faixa ampla melhorou pouco. É a melhor chance de ganho, já que o XGBoost parece ter chegado ao limite com este algoritmo.
-2. **Opcional: repetir a faixa ampla com 3 sementes de busca** (~8 h), para fechar o H2. Só vale se o CatBoost não vencer: os 0,08 ponto de agora não pagam as árvores maiores e o treino mais lento.
-3. **Redes, baixa prioridade:** juntar a validação por grupo e a média de 5 redes numa nova busca (`VERSAO = 3`). As duas tendências são boas, mas a rede está cerca de 1 ponto atrás do XGBoost, e nem somando os dois ganhos ela chegaria lá.
-4. **Sem mudança:** o TPE continua como buscador, e a faixa de `lr` das redes continua a mesma.
+1. **O XGBoost fica.** Trocar de algoritmo não paga: o CatBoost empata, é mais lento e traria uma dependência nova para o app.
+2. **O próximo ganho tem que vir dos dados, não do modelo.** Com três algoritmos de boosting parando em ~5,7 %, mexer na busca ou no algoritmo dá retorno baixo. As opções são mais carros, entradas novas ou a comparação com EPA/WLTP. O pior caso é o Plug-in (~12 %), e é aí que um dado melhor pesaria mais.
+3. **Opcional, não testado: a média de XGBoost e CatBoost.** Os erros dos dois por propulsão não são iguais, então a média pode ganhar um pouco. Mas pelo H5 o esperado é um ganho pequeno, abaixo do ruído.
+4. **Opcional: repetir a faixa ampla com 3 sementes de busca** (~8 h), para fechar o H2. Os 0,08 ponto de agora não pagam as árvores maiores e o treino mais lento.
+5. **Redes, baixa prioridade:** juntar a validação por grupo e a média de 5 redes numa nova busca (`VERSAO = 3`). As duas tendências são boas, mas a rede está cerca de 1 ponto atrás do XGBoost, e nem somando os dois ganhos ela chegaria lá.
+6. **Sem mudança:** o TPE continua como buscador, e a faixa de `lr` das redes continua a mesma.
 
 ## Execução
 
@@ -159,4 +200,5 @@ Cada item seria um plano e um PR próprios. Nada muda no modelo publicado por ca
   - `sementes`: 4 min;
   - `redes`: 3h40;
   - `cerca`: 9h20;
-  - `samplers`: 9h10.
+  - `samplers`: 9h10;
+  - `boosting`: 34h10, rodado depois, também via WMI.
