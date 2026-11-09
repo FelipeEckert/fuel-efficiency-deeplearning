@@ -11,7 +11,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
-from formulario import excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
+from formulario import NOMES_VALORES, excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
 from visual import CORES, html_arvore, html_rede
 
 from eficiencia.arvore import caminho_arvore
@@ -187,11 +187,11 @@ def _medidor(original: pd.Series, novo: pd.Series) -> None:
     st.plotly_chart(fig)
 
 
-def _e_se(pacote, alterado: dict, original: pd.Series) -> pd.Series:
-    """Medidor, métrica e avisos do veículo ajustado; devolve sua previsão (a original, se o ajuste falhar)."""
+def _e_se(pacote, alterado: dict, original: pd.Series) -> pd.Series | None:
+    """Medidor, métrica e avisos do veículo ajustado; devolve sua previsão (None, se o ajuste falhar)."""
     novo = _prever(pacote, alterado)
     if novo is None:
-        return original
+        return None
     _medidor(original, novo)
     diferenca = novo.mj_km - original.mj_km
     delta = (
@@ -282,8 +282,15 @@ except FileNotFoundError:
 if "cenarios" not in st.session_state:
     st.session_state["cenarios"] = []
 
+resumo = st.container()  # preenchido depois do formulário, com os valores atuais
 with st.expander("Ficha técnica do veículo", expanded=False):
     veiculo = formulario_veiculo("veiculo")
+resumo.caption(
+    f"{veiculo['propulsao']} · {NOMES_VALORES['combustivel'].get(veiculo['combustivel'], veiculo['combustivel'])}"
+    f" · {NOMES_VALORES['transmissao'].get(veiculo['transmissao'], veiculo['transmissao'])}"
+    f" · massa {numero(veiculo['massa_om_kg'], 0)} kg · F0 {numero(veiculo['f0_n'], 1)} N"
+    f" · F2 {numero(veiculo['f2_n_kmh2'], 4)} N/(km/h)²"
+)
 original = _prever(pacote, veiculo)
 if original is None:
     st.stop()
@@ -294,6 +301,8 @@ with caixa:
     alterado = _controles(veiculo)
 with direita:
     novo = _e_se(pacote, alterado, original)
+    if novo is None:  # ajuste inválido: o cenário salvo é o original
+        alterado, novo = veiculo, original
 with caixa:
     salvar, zerar = st.columns(2)
     salvar.button(

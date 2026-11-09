@@ -206,3 +206,19 @@ def test_eletrico_roda_simulador(pacote_rapido):
     at.number_input(key="veiculo_bateria_kwh").set_value(60.0).run()
     at.button(key="preset_aliviar").click().run()
     assert not at.exception
+
+
+def test_resumo_da_ficha(pacote_rapido):
+    at = _pagina()
+    resumo = at.caption[0].value
+    assert at.session_state["veiculo_propulsao"] in resumo and " kg" in resumo
+
+
+def test_salvar_com_ajuste_invalido_guarda_o_original(pacote_rapido):
+    at = _pagina()
+    at.number_input(key="veiculo_massa_om_kg").set_value(9000.0).run()
+    at.slider(key="es_massa").set_value(20).run()  # 10800 kg: fora do limite
+    assert at.error  # o ajuste não validou
+    at.button(key="salvar_cenario").click().run()
+    salvo = at.session_state["cenarios"][0]
+    assert salvo["veiculo"]["massa_om_kg"] == 9000.0
