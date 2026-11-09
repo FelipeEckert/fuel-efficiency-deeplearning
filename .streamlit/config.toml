@@ -1,0 +1,7 @@
+[theme]
+primaryColor = "#7C3AED"
+backgroundColor = "#FAF5FF"
+secondaryBackgroundColor = "#F5F3FF"
+textColor = "#1E1B4B"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+baseRadius = "large"

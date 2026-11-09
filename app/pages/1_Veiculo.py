@@ -10,8 +10,10 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from formulario import excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
+from formulario import NOMES_VALORES, excel_cenarios, formulario_veiculo, modelo, nome_livre, nome_padrao
+from visual import CORES, NOMES, html_arvore, html_rede
 
+from eficiencia.arvore import caminho_arvore
 from eficiencia.entrada import validar
 from eficiencia.esquema import ROTULOS
 from eficiencia.explicar import explicar, explicavel
@@ -80,12 +82,14 @@ def _resultado(r: pd.Series) -> None:
         st.warning(aviso)
 
 
-def _explicacao(pacote, veiculo: dict) -> None:
-    """Quanto cada entrada aumenta ou reduz o consumo em relação ao veículo médio da base (SHAP)."""
+def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
+    """Quanto cada entrada aumenta ou reduz o consumo em relação ao veículo médio da base (SHAP).
+
+    Devolve (ciclo, veículo validado) para a árvore usar os mesmos valores; None se não for XGBoost."""
     st.subheader("Por que este valor?")
     if not explicavel(pacote.modelo):
         st.caption("A explicação por entrada está disponível só para o modelo XGBoost.")
-        return
+        return None
     ciclo = st.radio("Ciclo", ["urbano", "estrada"], horizontal=True, key="shap_ciclo")
     normalizado = (
         validar(pd.DataFrame([veiculo]))[0].iloc[0].to_dict()
@@ -112,26 +116,42 @@ def _explicacao(pacote, veiculo: dict) -> None:
             x=efeitos.values,
             y=[rotulos.get(e, e) for e in efeitos.index],
             orientation="h",
-            marker_color=["#c0392b" if v > 0 else "#27ae60" for v in efeitos.values],
+            marker_color=[CORES["primaria"] if v > 0 else CORES["ciano"] for v in efeitos.values],
             texttemplate="%{x:+.1f} %",
             hovertemplate="%{y}: %{x:+.1f} %<extra></extra>",
         )
     )
     fig.update_layout(xaxis_title="efeito no MJ/km (%)", separators=",.", height=360, margin={"t": 30})
     st.plotly_chart(fig)
+    return ciclo, normalizado
 
 
-def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series]:
-    """Controles de variação; devolve o veículo ajustado e sua previsão (o original, se o ajuste falhar)."""
-    st.subheader("E se…")
-    st.caption("Mexa nos controles para ver quanto o consumo muda em relação ao veículo acima.")
+PRESETS = {  # chave do botão: (rótulo, variações em %)
+    "preset_aliviar": ("Aliviar 10 %", {"es_massa": -10}),
+    "preset_pneus": ("Pneus verdes −15 % F0", {"es_f0": -15}),
+    "preset_aero": ("Aero −10 % F2", {"es_f2": -10}),
+    "preset_pacote": ("Pacote −10 % em tudo", {"es_massa": -10, "es_f0": -10, "es_f2": -10}),
+}
+SLIDERS = ["es_massa", "es_f0", "es_f2", "es_potencia"]
+
+
+def _definir(valores: dict) -> None:
+    st.session_state.update(valores)
+
+
+def _controles(veiculo: dict) -> dict:
+    """Botões prontos e sliders de variação; devolve o veículo ajustado."""
+    st.subheader("Simulador de cenários")
+    st.caption("Mexa nos controles para ver quanto o consumo muda em relação ao veículo original.")
+    for coluna, (chave, (rotulo, valores)) in zip(st.columns(len(PRESETS)), PRESETS.items()):
+        coluna.button(rotulo, key=chave, on_click=_definir, args=(valores,), width="stretch")
     c1, c2 = st.columns(2)
     variacao = {
-        "massa_om_kg": c1.slider("Variação da massa (%)", -20, 20, 0, 1, format="%d %%", key="es_massa"),
-        "f0_n": c2.slider("Variação da F0 (%)", -20, 20, 0, 1, format="%d %%", key="es_f0"),
-        "f2_n_kmh2": c1.slider("Variação da F2 (%)", -20, 20, 0, 1, format="%d %%", key="es_f2"),
+        "massa_om_kg": c1.slider("Variação da massa (%)", -20, 20, 0, 5, format="%d %%", key="es_massa"),
+        "f0_n": c2.slider("Variação da F0 (%)", -20, 20, 0, 5, format="%d %%", key="es_f0"),
+        "f2_n_kmh2": c1.slider("Variação da F2 (%)", -20, 20, 0, 5, format="%d %%", key="es_f2"),
         "potencia_kw": c2.slider(
-            "Variação da potência (%)", -20, 20, 0, 1, format="%d %%", key="es_potencia"
+            "Variação da potência (%)", -20, 20, 0, 5, format="%d %%", key="es_potencia"
         ),
     }
     alterado = dict(veiculo)
@@ -139,10 +159,39 @@ def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series]:
         alterado[campo] = veiculo[campo] * (1 + pct / 100)
     if variacao["massa_om_kg"]:
         alterado["classe_inercia_kg"] = classe_inercia(alterado["massa_om_kg"])
+    return alterado
 
+
+def _medidor(original: pd.Series, novo: pd.Series) -> None:
+    ref = original.mj_km
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=novo.mj_km,
+            number={"valueformat": ".2f", "suffix": " MJ/km"},
+            delta={
+                "reference": ref,
+                "valueformat": ".2f",
+                "decreasing": {"color": CORES["ciano"]},
+                "increasing": {"color": CORES["primaria"]},
+            },
+            gauge={
+                "axis": {"range": [0.5 * ref, 1.5 * ref]},
+                "bar": {"color": CORES["primaria"]},
+                "steps": [{"range": [novo.mj_km_min, novo.mj_km_max], "color": "#DDD6FE"}],  # faixa de 90 %
+            },
+        )
+    )
+    fig.update_layout(height=260, margin={"t": 30, "b": 10}, separators=",.")
+    st.plotly_chart(fig)
+
+
+def _e_se(pacote, alterado: dict, original: pd.Series) -> pd.Series | None:
+    """Medidor, métrica e avisos do veículo ajustado; devolve sua previsão (None, se o ajuste falhar)."""
     novo = _prever(pacote, alterado)
     if novo is None:
-        return veiculo, original
+        return None
+    _medidor(original, novo)
     diferenca = novo.mj_km - original.mj_km
     delta = (
         f"{_sinal(diferenca, 2)} MJ/km ({_sinal(diferenca / original.mj_km * 100, 1)} %) em relação ao original"
@@ -153,7 +202,7 @@ def _e_se(pacote, veiculo: dict, original: pd.Series) -> tuple[dict, pd.Series]:
     for aviso in novo["avisos"]:
         if aviso not in original["avisos"]:
             st.warning(aviso)
-    return alterado, novo
+    return novo
 
 
 def _salvar(nome_chave: str, cenario: dict) -> None:
@@ -184,7 +233,7 @@ def _grafico(cenarios: list[dict]) -> None:
         go.Bar(
             x=rotulos,
             y=valores,
-            marker_color=["#7f8c8d"] + ["#2e86c1"] * (len(cenarios) - 1),
+            marker_color=["#94A3B8"] + [CORES["primaria"]] * (len(cenarios) - 1),
             error_y={
                 "type": "data",
                 "array": [c["resultado"]["mj_km_max"] - v for c, v in zip(cenarios, valores)],
@@ -232,19 +281,62 @@ except FileNotFoundError:
 if "cenarios" not in st.session_state:
     st.session_state["cenarios"] = []
 
-veiculo = formulario_veiculo("veiculo")
+resumo = st.container()  # preenchido depois do formulário, com os valores atuais
+with st.expander("Editar ficha técnica do veículo", expanded=False):
+    veiculo = formulario_veiculo("veiculo")
+resumo.caption(
+    f"{veiculo['propulsao']} · {NOMES_VALORES['combustivel'].get(veiculo['combustivel'], veiculo['combustivel'])}"
+    f" · {NOMES_VALORES['transmissao'].get(veiculo['transmissao'], veiculo['transmissao'])}"
+    f" · massa {numero(veiculo['massa_om_kg'], 0)} kg · F0 {numero(veiculo['f0_n'], 1)} N"
+    f" · F2 {numero(veiculo['f2_n_kmh2'], 4)} N/(km/h)²"
+)
 original = _prever(pacote, veiculo)
 if original is None:
     st.stop()
-_resultado(original)
-_explicacao(pacote, veiculo)
 
-alterado, novo = _e_se(pacote, veiculo, original)
-st.button(
-    "Salvar cenário",
-    key="salvar_cenario",
-    on_click=_salvar,
-    args=("nome_cenario", {"veiculo": alterado, "resultado": novo.to_dict()}),
-)
-st.caption("Salva o veículo com os ajustes atuais (sliders em 0 = veículo do formulário)")
+esquerda, direita = st.columns(2)
+caixa = esquerda.container(border=True)
+with caixa:
+    alterado = _controles(veiculo)
+with direita:
+    novo = _e_se(pacote, alterado, original)
+    if novo is None:  # ajuste inválido: o cenário salvo é o original
+        alterado, novo = veiculo, original
+with caixa:
+    salvar, zerar = st.columns(2)
+    salvar.button(
+        "Salvar cenário",
+        key="salvar_cenario",
+        on_click=_salvar,
+        args=("nome_cenario", {"veiculo": alterado, "resultado": novo.to_dict()}),
+    )
+    zerar.button(
+        "Voltar ao original", key="zerar_simulador", on_click=_definir, args=({k: 0 for k in SLIDERS},)
+    )
+    st.caption("Salva o veículo com os ajustes atuais (sliders em 0 = veículo do formulário)")
+
+_resultado(original)
+contexto = _explicacao(pacote, veiculo)
+
+st.subheader("O modelo por dentro")
+aba_arvore, aba_rede = st.tabs(["Árvore do XGBoost", "Rede neural"])
+with aba_arvore:
+    if contexto:
+        ciclo, normalizado = contexto
+        nos = caminho_arvore(pacote.modelo, normalizado, f"mj_km_{ciclo}")
+        n = pacote.modelo.estimadores[f"mj_km_{ciclo}"].get_booster().num_boosted_rounds()
+        st.caption(
+            f"Árvore 1 de {n} do XGBoost (alvo MJ/km {ciclo}). O valor da folha é uma pequena correção "
+            f"(em escala log) que se soma às das outras {n - 1} árvores. O sinal percorre o caminho do "
+            "veículo; os demais nós ficam apagados."
+        )
+        st.iframe(html_arvore(nos), height=500)
+    else:
+        st.caption("A árvore está disponível só quando o modelo vencedor é o XGBoost.")
+with aba_rede:
+    st.caption(
+        "Esquema ilustrativo de uma rede neural, uma das candidatas do treino; o número de neurônios "
+        f"não é o real. O app usa o modelo {NOMES.get(pacote.algoritmo, pacote.algoritmo)}."
+    )
+    st.iframe(html_rede(), height=440)
 _cenarios()

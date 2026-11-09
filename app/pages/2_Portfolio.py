@@ -9,8 +9,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pasta app/, para
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from formulario import CATEGORIAS, formulario_veiculo, modelo
+from visual import CORES
 
 from eficiencia.esquema import CATEGORICAS, VALORES
 from eficiencia.formato import numero
@@ -156,7 +158,7 @@ except FileNotFoundError:
     pacote = None
     st.info("Sem modelo treinado: só linhas com MJ/km conhecido serão calculadas.")
 
-topo = st.container()  # resultado aparece acima da tabela, mas é calculado com a tabela editada
+topo = st.container(border=True)  # resultado aparece acima da tabela, mas é calculado com a tabela editada
 
 st.subheader("Veículos")
 editado = st.data_editor(
@@ -206,7 +208,19 @@ with topo:
         if not resultado.tabela.empty:
             c1, c2 = st.columns(2)
             c1.subheader("Por propulsão")
-            c1.dataframe(_quebra(resultado.por_propulsao, "Propulsão"), hide_index=True)
+            por_propulsao = _quebra(resultado.por_propulsao, "Propulsão")
+            c1.dataframe(por_propulsao, hide_index=True)
+            fig = go.Figure(
+                go.Bar(
+                    x=list(resultado.por_propulsao.iloc[:, 0]),
+                    y=list(resultado.por_propulsao["media_mj_km"]),
+                    marker_color=CORES["primaria"],
+                    texttemplate="%{y:.2f}",
+                    hovertemplate="%{x}: %{y:.2f} MJ/km<extra></extra>",
+                )
+            )
+            fig.update_layout(yaxis_title="MJ/km médio", separators=",.", height=260, margin={"t": 10})
+            c1.plotly_chart(fig)
             c2.subheader("Por categoria")
             c2.dataframe(
                 _quebra(resultado.por_categoria, "Categoria", lambda c: CATEGORIAS.get(c, c)), hide_index=True

@@ -2,21 +2,19 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pasta app/, para importar visual
+
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
+from visual import CORES, NOMES
 
 from eficiencia.dados import RAIZ
 from eficiencia.formato import numero
 
-NOMES = {
-    "linear": "Regressão linear",
-    "floresta": "Random Forest",
-    "xgboost": "XGBoost",
-    "rede_por_alvo": "Rede neural por alvo",
-    "rede_multi": "Rede neural multi-saída",
-}
 ORDEM_PROPULSAO = ["Combustão", "Híbrido", "Plug-in", "Elétrico"]  # as demais vêm depois, em ordem alfabética
 FIGURAS = {"erro_por_propulsao.png": "Erro por propulsão", "previsto_real.png": "Previsto × real do vencedor"}
 MAX_VIOLACOES = 10
@@ -87,14 +85,32 @@ if not arquivo.exists():
 metricas = _carregar(arquivo)
 candidatos, vencedor = metricas["candidatos"], metricas["vencedor"]
 
-if vencedor:
-    st.success(
-        f"Vencedor: {NOMES.get(vencedor, vencedor)} — {numero(100 * candidatos[vencedor]['erro_mj'], 1)} % de erro médio no MJ/km"
+ordem = sorted(
+    candidatos, key=lambda n: candidatos[n]["erro_mj"], reverse=True
+)  # menor erro no topo do gráfico
+fig = go.Figure(
+    go.Bar(
+        x=[100 * candidatos[n]["erro_mj"] for n in ordem],
+        y=[NOMES.get(n, n) for n in ordem],
+        orientation="h",
+        marker_color=[CORES["primaria"] if n == vencedor else "#C4B5FD" for n in ordem],
+        texttemplate="%{x:.1f} %",
+        hovertemplate="%{y}: %{x:.1f} %<extra></extra>",
     )
-else:  # treino sem candidato aprovado: relatório e métricas existem, mas nenhum pacote foi salvo
-    st.warning("Nenhum modelo passou no teste de monotonia neste treino.")
-st.subheader("Candidatos")
-st.dataframe(_tabela(candidatos, vencedor), hide_index=True)
+)
+fig.update_layout(
+    xaxis_title="Erro geral (%)", separators=",.", height=80 + 50 * len(ordem), margin={"t": 30}
+)
+st.plotly_chart(fig)
+with st.container(border=True):
+    if vencedor:
+        st.success(
+            f"Vencedor: {NOMES.get(vencedor, vencedor)} — {numero(100 * candidatos[vencedor]['erro_mj'], 1)} % de erro médio no MJ/km"
+        )
+    else:  # treino sem candidato aprovado: relatório e métricas existem, mas nenhum pacote foi salvo
+        st.warning("Nenhum modelo passou no teste de monotonia neste treino.")
+    st.subheader("Candidatos")
+    st.dataframe(_tabela(candidatos, vencedor), hide_index=True)
 st.caption(
     "Os erros vêm de validação cruzada aninhada por grupo de modelo: cada veículo é previsto por um modelo "
     "que não o viu no treino. O erro geral é o percentual médio no MJ/km combinado (urbano e estrada). "
