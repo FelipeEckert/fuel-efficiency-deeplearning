@@ -18,7 +18,7 @@ from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base
 from eficiencia.faixa import calcular_faixas
 from eficiencia.fisica import combinar_mj, fatores_kml
 from eficiencia.formato import numero
-from eficiencia.incerteza import calcular_quantis
+from eficiencia.incerteza import calcular_quantis, erros_relativos
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.monotonia import checar_monotonia
 from eficiencia.validacao import buscar_params, cv_aninhada, hash8, prefixo_estudo
@@ -142,6 +142,7 @@ def treinar(
         faixas=calcular_faixas(df),
         fatores_kml=fatores_kml(df),
         referencias=_referencias(df),
+        erros_oof=erros_relativos(df, resultados[vencedor].oof),
         metadados=metadados,
     )
     salvar(pacote, pasta_modelo)

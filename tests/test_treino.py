@@ -12,6 +12,7 @@ def test_treino_rapido(treino_rapido):
     assert t.pacote.algoritmo == t.metricas["vencedor"] in {"linear", "xgboost"}
     assert t.metricas["candidatos"][t.metricas["vencedor"]]["monotonia"] == "aprovado"
     assert set(t.pacote.quantis) == {"Combustão", "Híbrido", "Plug-in", "Elétrico"}
+    assert set(t.pacote.erros_oof) == set(t.pacote.quantis) and all(t.pacote.erros_oof.values())
     assert (t.pasta_relatorios / "metricas.json").exists() and (t.pasta_relatorios / "relatorio.md").exists()
     assert carregar(t.pasta_modelo).algoritmo == t.pacote.algoritmo
     assert t.pacote.metadados["rapido"] is True

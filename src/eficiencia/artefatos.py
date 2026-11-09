@@ -21,6 +21,7 @@ class Pacote:
     faixas: dict
     fatores_kml: dict[str, tuple[float, float]]
     referencias: dict[str, dict[str, float]]
+    erros_oof: dict[str, list[float]]
     metadados: dict
 
 
