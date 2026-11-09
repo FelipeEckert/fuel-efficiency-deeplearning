@@ -30,6 +30,15 @@ def test_pagina_veiculo_calcula(pacote_rapido):
     assert any("MJ/km" in m.label for m in at.metric)
 
 
+def test_explicacao_sem_erro_nos_dois_ciclos(pacote_rapido):
+    at = _pagina()
+    assert any(s.value == "Por que este valor?" for s in at.subheader)
+    radios = [r for r in at.radio if r.key == "shap_ciclo"]  # sem radio quando o vencedor não é XGBoost
+    if radios:
+        radios[0].set_value("estrada").run()
+    assert not at.exception
+
+
 def test_salvar_cenario(pacote_rapido):
     at = _pagina()
     at.button(key="salvar_cenario").click().run()
@@ -74,7 +83,7 @@ def test_dois_cenarios_base_e_diferenca(pacote_rapido):
     assert nomes == ["Cenário 1", "Cenário 2"]
     mj = [c["resultado"]["mj_km"] for c in at.session_state["cenarios"]]
     assert mj[1] > mj[0]
-    grafico = at.get("plotly_chart")[0].proto.spec
+    grafico = at.get("plotly_chart")[-1].proto.spec  # o último: o primeiro pode ser o da explicação
     assert "base" in grafico and "%)" in grafico  # rótulos de diferença (spec JSON escapa "/")
 
 
