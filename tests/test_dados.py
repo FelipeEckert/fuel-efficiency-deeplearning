@@ -3,6 +3,7 @@ import pytest
 
 from eficiencia.dados import (
     CV_PARA_KW,
+    ENTRADA,
     SAIDA,
     checar,
     grupo_cv,
@@ -12,17 +13,24 @@ from eficiencia.dados import (
     transmissao,
 )
 
+# the source spreadsheet is not versioned: these tests run only where it exists locally
+precisa_planilha = pytest.mark.skipif(
+    not ENTRADA.exists(), reason="PBEV spreadsheet not available (data/raw)"
+)
+
 
 @pytest.fixture(scope="module")
 def limpo():
     return limpar()
 
 
+@precisa_planilha
 def test_invariantes(limpo):
     df, _ = limpo
     checar(df)
 
 
+@precisa_planilha
 def test_regenerar_igual_ao_commitado(tmp_path):
     df, _ = limpar()
     salvar(df, tmp_path / "x.csv")
@@ -31,6 +39,7 @@ def test_regenerar_igual_ao_commitado(tmp_path):
     pd.testing.assert_frame_equal(novo, atual)
 
 
+@precisa_planilha
 def test_contagens(limpo):
     df, rel = limpo
     assert len(df) == 510

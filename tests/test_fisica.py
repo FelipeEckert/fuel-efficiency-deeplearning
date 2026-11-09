@@ -1,6 +1,6 @@
 import pytest
 
-from eficiencia.esquema import carregar_base
+from eficiencia.esquema import CAMINHO_BASE, carregar_base
 from eficiencia.fisica import (
     classe_inercia,
     combinar_kml,
@@ -9,6 +9,9 @@ from eficiencia.fisica import (
     fatores_diesel,
     kml_eletrico_eq,
 )
+
+# golden values measured on the real PBEV table, which is not versioned
+base_real = pytest.mark.skipif(not CAMINHO_BASE.exists(), reason="real PBEV table not available")
 
 
 @pytest.mark.parametrize("massa,classe", [(1490, 1644), (1650, 1758), (300, 454), (3000, 2495)])
@@ -22,6 +25,7 @@ def test_combinar():
     assert kml_eletrico_eq(0.5) == pytest.approx(40.58)
 
 
+@base_real
 def test_fatores_diesel():
     urb, est = fatores_diesel(carregar_base())
     assert urb == pytest.approx(27.96, abs=0.05) and est == pytest.approx(25.57, abs=0.05)

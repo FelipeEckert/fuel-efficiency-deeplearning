@@ -1,5 +1,6 @@
 """Colunas do modelo: entradas, alvos, valores categóricos e rótulos em pt-BR."""
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -84,5 +85,10 @@ ROTULOS: dict[str, str] = {
 }
 
 
-def carregar_base(caminho: Path = CAMINHO_BASE) -> pd.DataFrame:
-    return pd.read_csv(caminho, dtype={"lcvm": str})
+def caminho_base() -> Path:
+    """Clean table path; EFICIENCIA_BASE points elsewhere (the tests use a synthetic table)."""
+    return Path(os.environ.get("EFICIENCIA_BASE", CAMINHO_BASE))
+
+
+def carregar_base(caminho: Path | None = None) -> pd.DataFrame:
+    return pd.read_csv(caminho or caminho_base(), dtype={"lcvm": str})

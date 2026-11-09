@@ -1,5 +1,6 @@
 """Formulário de um veículo: as entradas do modelo em widgets Streamlit, reutilizado pelas páginas do app."""
 
+import json
 import os
 from io import BytesIO
 from pathlib import Path
@@ -8,10 +9,12 @@ import pandas as pd
 import streamlit as st
 
 from eficiencia.artefatos import PASTA_MODELO, Pacote, carregar
-from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES, carregar_base
+from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES, caminho_base, carregar_base
 from eficiencia.fisica import classe_inercia
 from eficiencia.formato import numero
 from eficiencia.prever import SAIDAS
+
+VEICULO_PADRAO = Path(__file__).with_name("veiculo_padrao.json")
 
 CATEGORIAS = {
     "SC": "Subcompacto",
@@ -64,7 +67,12 @@ def modelo() -> Pacote:
 
 
 def _padrao_base() -> dict:
-    """Veículo típico: mediana (numéricas) ou moda (categóricas) dos veículos de Combustão da base."""
+    """Veículo típico: mediana (numéricas) ou moda (categóricas) dos veículos de Combustão da base.
+
+    Sem a base local (ela não é versionada), usa o veículo típico salvo em veiculo_padrao.json.
+    """
+    if not caminho_base().exists():
+        return json.loads(VEICULO_PADRAO.read_text(encoding="utf-8"))
     combustao = carregar_base().query('propulsao == "Combustão"')
     padrao = {}
     for campo in CAMPOS:

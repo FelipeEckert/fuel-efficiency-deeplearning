@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base
+from eficiencia.esquema import ALVOS, CAMINHO_BASE, ENTRADAS, carregar_base
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.monotonia import checar_monotonia
 from eficiencia.validacao import cv_aninhada
+
+# golden values measured on the real PBEV table, which is not versioned
+base_real = pytest.mark.skipif(not CAMINHO_BASE.exists(), reason="real PBEV table not available")
 
 
 def test_rede_multi_alvos_ausentes_nao_viram_nan():
@@ -70,6 +73,7 @@ PADRAO = {
 }
 
 
+@base_real
 @pytest.mark.parametrize("nome", ["rede_por_alvo", "rede_multi"])
 def test_padroes_mantem_previsoes(nome):
     df = carregar_base()

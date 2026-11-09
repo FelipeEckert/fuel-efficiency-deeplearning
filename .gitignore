@@ -9,3 +9,6 @@ modelos/rapido/
 relatorios/rapido/
 relatorios/experimentos/rapido/
 relatorios/experimentos/*.log
+# PBEV source spreadsheets and the generated table stay on each machine (see data/README.md)
+data/raw/
+data/processed/
