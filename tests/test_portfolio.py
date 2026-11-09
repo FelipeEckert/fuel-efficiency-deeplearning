@@ -27,9 +27,9 @@ def test_mistura_real_e_estimado(pacote_rapido):
 def test_volumes_invalidos():
     df = pd.DataFrame({"nome": ["A", "B", "C"], "volume": [0, -5, None], "mj_km_conhecido": [1.5, 2.0, 1.0]})
     r = media_portfolio(df)
-    linhas = [e for e in r.erros if e.startswith("linha ")]
-    assert np.isnan(r.media_mj_km) and len(linhas) == 3 and linhas[0].startswith("linha 1:")
-    assert any(not e.startswith("linha ") for e in r.erros)  # erro geral: nenhum volume válido
+    linhas = [e for e in r.erros if e.startswith("row ")]
+    assert np.isnan(r.media_mj_km) and len(linhas) == 3 and linhas[0].startswith("row 1:")
+    assert any(not e.startswith("row ") for e in r.erros)  # erro geral: nenhum volume válido
 
 
 def test_modelo_planilha_ida_e_volta():
@@ -54,9 +54,9 @@ def test_numeracao_de_linha_e_mj_textual():
     )
     r = media_portfolio(df)  # nenhuma linha a estimar: o modelo não é carregado
     assert r.media_mj_km == pytest.approx(1.5)
-    assert any(e.startswith("linha 2: ") for e in r.erros)  # especificação faltando, na posição da tabela
-    assert "linha 3: volume deve ser maior que zero" in r.erros
-    assert "linha 4: MJ/km conhecido deve ser número maior que zero" in r.erros
+    assert any(e.startswith("row 2: ") for e in r.erros)  # especificação faltando, na posição da tabela
+    assert "row 3: volume must be greater than zero" in r.erros
+    assert "row 4: known MJ/km must be a number greater than zero" in r.erros
 
 
 def test_quebra_usa_nao_informado():
@@ -69,8 +69,8 @@ def test_quebra_usa_nao_informado():
         }
     )
     r = media_portfolio(df)
-    assert set(r.por_propulsao["propulsao"]) == {"Combustão", "não informado"}
-    assert r.por_propulsao.set_index("propulsao").loc["não informado", "media_mj_km"] == pytest.approx(2.0)
+    assert set(r.por_propulsao["propulsao"]) == {"Combustão", "not given"}
+    assert r.por_propulsao.set_index("propulsao").loc["not given", "media_mj_km"] == pytest.approx(2.0)
 
 
 def test_ler_planilha_aceita_nomes_de_coluna():
@@ -86,7 +86,7 @@ def test_ler_planilha_aceita_nomes_de_coluna():
 def test_ler_planilha_nunca_levanta(conteudo):
     df, erros = ler_planilha(conteudo)
     assert df.empty and list(df.columns) == COLUNAS_PORTFOLIO
-    assert len(erros) == 1 and erros[0].startswith("não foi possível ler a planilha: ")
+    assert len(erros) == 1 and erros[0].startswith("could not read the spreadsheet: ")
 
 
 def test_volume_texto_com_milhar_pt_br():
@@ -119,9 +119,9 @@ def test_propulsao_invalida_em_linha_real_e_reportada():
         }
     )
     r = media_portfolio(df)
-    assert r.erros == ["linha 1: Propulsão inválido: Foo"]
+    assert r.erros == ["row 1: Powertrain is invalid: Foo"]
     assert r.media_mj_km == pytest.approx(2.0)  # a linha continua na média
-    assert set(r.por_propulsao["propulsao"]) == {"não informado"}
+    assert set(r.por_propulsao["propulsao"]) == {"not given"}
 
 
 def test_ler_planilha_canoniza_categoricas_e_mantem_desconhecidas():

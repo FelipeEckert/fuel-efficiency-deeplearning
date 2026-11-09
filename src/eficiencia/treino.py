@@ -1,4 +1,4 @@
-"""Treino de todos os candidatos, escolha do vencedor, artefatos e relatório. Uso: uv run eficiencia-treinar"""
+"""Train every candidate, pick the winner, and write the model and the report. Usage: uv run eficiencia-treinar"""
 
 import argparse
 import json
@@ -14,18 +14,19 @@ from matplotlib.figure import Figure
 
 from eficiencia.artefatos import PASTA_MODELO, Pacote, salvar
 from eficiencia.dados import RAIZ
-from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base
+from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base, nome_valor
 from eficiencia.faixa import calcular_faixas
 from eficiencia.fisica import combinar_mj, fatores_diesel
 from eficiencia.formato import numero
 from eficiencia.incerteza import calcular_quantis
-from eficiencia.modelos import CANDIDATOS
+from eficiencia.modelos import CANDIDATOS, NOMES_MODELOS
 from eficiencia.monotonia import checar_monotonia
 from eficiencia.validacao import buscar_params, cv_aninhada, hash8, prefixo_estudo
 
 PASTA_RELATORIOS = RAIZ / "relatorios"
 STORAGE = f"sqlite:///{(RAIZ / 'optuna' / 'estudos.db').as_posix()}"
 SEMENTE = 0
+MONOTONIA = {"aprovado": "pass", "reprovado": "fail"}  # stored codes -> report text
 BIBLIOTECAS = ["pandas", "numpy", "scikit-learn", "xgboost", "torch", "optuna"]
 
 
@@ -133,7 +134,7 @@ def treinar(
     (pasta_relatorios / "relatorio.md").write_text(_relatorio(metricas, metadados), encoding="utf-8")
     if vencedor is None:
         detalhe = "\n".join(f"{n}: " + "; ".join(violacoes[n]) for n in nomes)
-        raise RuntimeError(f"nenhum candidato passou no teste de monotonia:\n{detalhe}")
+        raise RuntimeError(f"no candidate passed the monotonicity check:\n{detalhe}")
 
     pacote = Pacote(
         algoritmo=vencedor,
@@ -163,10 +164,15 @@ def _figura_erro_por_propulsao(metricas: dict, caminho: Path) -> None:
     x = np.arange(len(propulsoes))
     for i, nome in enumerate(nomes):
         erros = metricas["candidatos"][nome]["erro_por_propulsao"]
-        ax.bar(x + i * largura, [100 * erros[p] for p in propulsoes], largura, label=nome)
-    ax.set_xticks(x + largura * (len(nomes) - 1) / 2, propulsoes)
-    ax.set_ylabel("Erro médio MJ/km (%)")
-    ax.set_title("Erro fora da amostra por propulsão")
+        ax.bar(
+            x + i * largura,
+            [100 * erros[p] for p in propulsoes],
+            largura,
+            label=NOMES_MODELOS.get(nome, nome),
+        )
+    ax.set_xticks(x + largura * (len(nomes) - 1) / 2, [nome_valor("propulsao", p) for p in propulsoes])
+    ax.set_ylabel("Mean absolute error, MJ/km (%)")
+    ax.set_title("Out-of-sample error by powertrain")
     ax.legend()
     fig.savefig(caminho, dpi=120, bbox_inches="tight")
 
@@ -177,12 +183,12 @@ def _figura_previsto_real(df: pd.DataFrame, oof: pd.DataFrame, nome: str, caminh
     ax = fig.subplots()
     previsto = combinar_mj(oof["mj_km_urbano"], oof["mj_km_estrada"])
     for propulsao, grupo in df.groupby("propulsao"):
-        ax.scatter(grupo["mj_km"], previsto[grupo.index], s=8, label=propulsao)
+        ax.scatter(grupo["mj_km"], previsto[grupo.index], s=8, label=nome_valor("propulsao", propulsao))
     limite = [df["mj_km"].min(), df["mj_km"].max()]
     ax.plot(limite, limite, color="gray", linewidth=1)
-    ax.set_xlabel("MJ/km real")
-    ax.set_ylabel("MJ/km previsto (fora da amostra)")
-    ax.set_title(f"Vencedor: {nome}")
+    ax.set_xlabel("Label MJ/km")
+    ax.set_ylabel("Predicted MJ/km (out of sample)")
+    ax.set_title(f"Selected model: {NOMES_MODELOS.get(nome, nome)}")
     ax.legend()
     fig.savefig(caminho, dpi=120, bbox_inches="tight")
 
@@ -193,64 +199,86 @@ def _relatorio(metricas: dict, metadados: dict) -> str:
     propulsoes = list(next(iter(candidatos.values()))["erro_por_propulsao"])
     if vencedor:
         resumo = [
-            f"**Vencedor: {vencedor}**, o de menor erro entre os que passam no teste de monotonia.",
-            f"Hiperparâmetros: `{metadados['params']}`",
+            (
+                f"**Selected model: {NOMES_MODELOS.get(vencedor, vencedor)}**, the lowest error among the "
+                "candidates that pass the monotonicity check."
+            ),
+            "",
+            f"Hyperparameters: `{metadados['params']}`",
         ]
     else:
-        resumo = ["**Nenhum candidato passou no teste de monotonia.** Nenhum modelo foi salvo."]
+        resumo = ["**No candidate passed the monotonicity check.** No model was saved."]
     linhas = [
-        "# Relatório de treino: eficiência energética",
+        "# Training report: vehicle energy efficiency",
         "",
-        f"Data: {metadados['data']} · hash da base: `{metadados['hash_csv']}`",
+        f"Date: {metadados['data']} · data hash: `{metadados['hash_csv']}`",
         "",
         *resumo,
         "",
-        "## Candidatos",
+        (
+            "Errors are the mean absolute percentage error on combined MJ/km, out of sample "
+            "(nested cross-validation grouped by model family)."
+        ),
         "",
-        "| Candidato | Erro MJ/km | Monotonia | Tentativas |",
+        "## Candidates",
+        "",
+        "| Candidate | MJ/km error | Monotonicity | Trials |",
         "|---|---|---|---|",
     ]
     for nome, c in candidatos.items():
         linhas.append(
-            f"| {nome} | {numero(100 * c['erro_mj'], 2)} % | {c['monotonia']} | {c['n_tentativas']} |"
+            f"| {NOMES_MODELOS.get(nome, nome)} | {numero(100 * c['erro_mj'], 2)} % "
+            f"| {MONOTONIA.get(c['monotonia'], c['monotonia'])} | {c['n_tentativas']} |"
         )
     linhas += [
         "",
-        "## Erro por propulsão (MJ/km)",
+        "## Error by powertrain (MJ/km)",
         "",
-        "| Candidato | " + " | ".join(propulsoes) + " |",
+        "| Candidate | " + " | ".join(nome_valor("propulsao", p) for p in propulsoes) + " |",
         "|---|" + "---|" * len(propulsoes),
     ]
     for nome, c in candidatos.items():
         celulas = [numero(100 * c["erro_por_propulsao"][p], 2) + " %" for p in propulsoes]
-        linhas.append(f"| {nome} | " + " | ".join(celulas) + " |")
+        linhas.append(f"| {NOMES_MODELOS.get(nome, nome)} | " + " | ".join(celulas) + " |")
     reprovados = {n: c["violacoes"] for n, c in candidatos.items() if c["violacoes"]}
     if reprovados:
-        linhas += ["", "## Violações de monotonia", ""]
-        linhas += [f"- {n}: {len(v)} violações, por exemplo: {v[0]}" for n, v in reprovados.items()]
-    linhas += ["", "## Figuras", "", "![Erro por propulsão](figuras/erro_por_propulsao.png)", ""]
+        linhas += ["", "## Monotonicity violations", ""]
+        linhas += [
+            f"- {NOMES_MODELOS.get(n, n)}: {len(v)} violations, for example: {v[0]}"
+            for n, v in reprovados.items()
+        ]
+    linhas += ["", "## Figures", "", "![Error by powertrain](figuras/erro_por_propulsao.png)", ""]
     if vencedor:
-        linhas += ["![Previsto × real do vencedor](figuras/previsto_real.png)", ""]
+        linhas += ["![Predicted vs. label MJ/km for the selected model](figuras/previsto_real.png)", ""]
     return "\n".join(linhas)
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Treina os candidatos, escolhe o vencedor e gera os artefatos."
+        description="Train every candidate, pick the winner and write the model and the report."
     )
-    parser.add_argument("--tentativas", type=int, default=50, help="tentativas do Optuna por candidato")
     parser.add_argument(
-        "--candidatos", type=lambda s: s.split(","), help="ex.: linear,xgboost (padrão: todos)"
+        "--tentativas",
+        type=int,
+        default=50,
+        help="Optuna trials per study (a total: interrupted runs resume)",
+    )
+    parser.add_argument(
+        "--candidatos",
+        type=lambda s: s.split(","),
+        help="comma-separated, e.g. linear,xgboost (default: all)",
     )
     parser.add_argument(
         "--rapido",
         action="store_true",
-        help="modo rápido, para desenvolvimento e CI; grava em modelos/rapido e relatorios/rapido",
+        help="fast mode for development and CI; writes to modelos/rapido and relatorios/rapido",
     )
     args = parser.parse_args(argv)
     metricas = treinar(n_tentativas=args.tentativas, candidatos=args.candidatos, rapido=args.rapido)
     for nome, c in metricas["candidatos"].items():
         erro = numero(100 * c["erro_mj"], 2)
-        print(f"{nome}: erro MJ/km {erro} %, monotonia {c['monotonia']}, tentativas {c['n_tentativas']}")
-    print(f"relatório em {_pastas_padrao(args.rapido)[1] / 'relatorio.md'}")
-    print(f"vencedor: {metricas['vencedor']}")
+        print(
+            f"{nome}: MJ/km error {erro} %, monotonicity {MONOTONIA.get(c['monotonia'], c['monotonia'])}, trials {c['n_tentativas']}"
+        )
+    print(f"report: {_pastas_padrao(args.rapido)[1] / 'relatorio.md'}")
+    print(f"selected model: {metricas['vencedor']}")

@@ -101,7 +101,7 @@ def test_nome_do_estudo_leva_o_sampler(tmp_path):
 
 
 def test_sampler_desconhecido():
-    with pytest.raises(ValueError, match="sampler desconhecido"):
+    with pytest.raises(ValueError, match="unknown sampler"):
         cv_aninhada("linear", carregar_base(), 1, None, n_externas=2, n_internas=2, sampler="sa")
 
 

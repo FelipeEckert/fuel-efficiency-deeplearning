@@ -62,16 +62,16 @@ NOS = [
 
 
 def test_pergunta_legivel():
-    assert pergunta(NOS[0]) == "Bateria (kWh) < 12?"
-    assert pergunta(NOS[1]) == "Propulsão é Elétrico?"
+    assert pergunta(NOS[0]) == "Battery (kWh) < 12?"
+    assert pergunta(NOS[1]) == "Powertrain is Electric?"
 
 
 def test_html_arvore_anima_so_o_caminho():
     h = html_arvore(NOS)
     assert h.count('class="part"') == 2  # duas arestas no caminho
-    assert "Propulsão é Elétrico?" in h and "32 carros" in h
+    assert "Powertrain is Electric?" in h and "32 cars" in h
     # NOS[1] é o Yes da pergunta numérica (sim), NOS[2] o No (não); NOS[4] é o No da pergunta de categoria (sim)
-    assert h.count(">sim<") == 2 and h.count(">não<") == 1
+    assert h.count(">yes<") == 2 and h.count(">no<") == 1
     assert "prefers-reduced-motion" in h and "overflow-x:auto" in h
 
 

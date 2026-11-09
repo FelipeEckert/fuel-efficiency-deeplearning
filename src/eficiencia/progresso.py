@@ -1,4 +1,4 @@
-"""Progresso do treino, lido do banco do Optuna. Uso: uv run eficiencia-progresso --tentativas 100"""
+"""Training progress, read from the Optuna database. Usage: uv run eficiencia-progresso --tentativas 100"""
 
 import argparse
 
@@ -44,9 +44,9 @@ def progresso(storage: str, meta: int, h: str) -> list[dict]:
         valores = [t.value for trials in lista for t in trials if t.state == TrialState.COMPLETE]
         total = meta * ESTUDOS_POR_MODELO
         if any(_rodando(trials) for trials in lista):
-            situacao = "em treino"
+            situacao = "training"
         else:
-            situacao = "concluído" if feitas >= total else "pendente"
+            situacao = "done" if feitas >= total else "pending"
         linhas.append(
             {
                 "modelo": nome,
@@ -60,18 +60,18 @@ def progresso(storage: str, meta: int, h: str) -> list[dict]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Mostra quanto do treino já foi feito.")
+    parser = argparse.ArgumentParser(description="Show how much of the training is done.")
     parser.add_argument(
-        "--tentativas", type=int, default=50, help="o mesmo valor passado ao eficiencia-treinar"
+        "--tentativas", type=int, default=50, help="the same value passed to eficiencia-treinar"
     )
-    parser.add_argument("--banco", default=STORAGE, help="URL do banco do Optuna")
-    parser.add_argument("--hash", help="hash da base (padrão: o da base atual)")
+    parser.add_argument("--banco", default=STORAGE, help="Optuna database URL")
+    parser.add_argument("--hash", help="data hash (default: the current table)")
     args = parser.parse_args(argv)
 
     linhas = progresso(args.banco, args.tentativas, args.hash or hash8(carregar_base()))
-    print(f"{'modelo':<15}{'tentativas':>12}{'melhor na busca':>17}  situação")
+    print(f"{'model':<15}{'trials':>12}{'best in search':>17}  status")
     for linha in linhas:
         melhor = "-" if linha["melhor"] is None else numero(100 * linha["melhor"], 2) + " %"
         tentativas = f"{linha['feitas']}/{linha['meta']}"
         print(f"{linha['modelo']:<15}{tentativas:>12}{melhor:>17}  {linha['situacao']}")
-    print(f"faltam {sum(linha['meta'] - linha['feitas'] for linha in linhas)} tentativas")
+    print(f"{sum(linha['meta'] - linha['feitas'] for linha in linhas)} trials left")

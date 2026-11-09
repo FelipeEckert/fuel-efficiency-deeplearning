@@ -1,5 +1,6 @@
-"""Formulário de um veículo: as entradas do modelo em widgets Streamlit, reutilizado pelas páginas do app."""
+"""Vehicle form: the model inputs as Streamlit widgets, shared by the app pages."""
 
+import json
 import os
 from io import BytesIO
 from pathlib import Path
@@ -8,48 +9,44 @@ import pandas as pd
 import streamlit as st
 
 from eficiencia.artefatos import PASTA_MODELO, Pacote, carregar
-from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES, carregar_base
+from eficiencia.esquema import (
+    CATEGORICAS,
+    ENTRADAS,
+    ROTULOS,
+    VALORES,
+    caminho_base,
+    carregar_base,
+    nome_valor,
+)
 from eficiencia.fisica import classe_inercia
 from eficiencia.formato import numero
 from eficiencia.prever import SAIDAS
 
+VEICULO_PADRAO = Path(__file__).with_name("veiculo_padrao.json")
+
 CATEGORIAS = {
-    "SC": "Subcompacto",
-    "C": "Compacto",
-    "M": "Médio",
-    "G": "Grande",
-    "EXG": "Extra Grande",
-    "SUVC": "Utilitário Esportivo Compacto",
-    "SUVC4": "Utilitário Esportivo Compacto 4x4",
-    "SUVG": "Utilitário Esportivo Grande",
-    "SUVG4": "Utilitário Esportivo Grande 4x4",
-    "FEC": "Fora de Estrada Compacto",
-    "FEG": "Fora de Estrada Grande",
+    "SC": "Subcompact",
+    "C": "Compact",
+    "M": "Midsize",
+    "G": "Large",
+    "EXG": "Extra large",
+    "SUVC": "Compact SUV",
+    "SUVC4": "Compact SUV 4x4",
+    "SUVG": "Large SUV",
+    "SUVG4": "Large SUV 4x4",
+    "FEC": "Compact off-road",
+    "FEG": "Large off-road",
     "MIN": "Minivan",
-    "CL": "Comercial",
-    "PIC": "Picape",
-    "PC": "Picape Compacta",
-    "E": "Esportivo",
+    "CL": "Light commercial",
+    "PIC": "Pickup",
+    "PC": "Compact pickup",
+    "E": "Sports",
 }
 CAMPOS = [c for c in ENTRADAS if c != "bateria_estimada"]  # sempre False no app
-# rótulos legíveis dos selects; o valor guardado continua sendo o código da base
-NOMES_VALORES = {
-    "transmissao": {
-        "automatica": "Automática",
-        "manual": "Manual",
-        "cvt": "CVT",
-        "dct": "Dupla embreagem (DCT)",
-        "dht": "Híbrida dedicada (DHT)",
-        "direta": "Direta (1 marcha)",
-    },
-    "direcao": {"eletrica": "Elétrica", "hidraulica": "Hidráulica", "eletro-hidraulica": "Eletro-hidráulica"},
-    "combustivel": {"gasolina": "Gasolina", "flex": "Flex", "diesel": "Diesel", "eletrico": "Elétrico"},
-}
 
 
 def _nome(campo: str):
-    nomes = NOMES_VALORES[campo]
-    return lambda codigo: nomes.get(codigo, codigo)
+    return lambda codigo: nome_valor(campo, codigo)
 
 
 @st.cache_resource
@@ -64,7 +61,12 @@ def modelo() -> Pacote:
 
 
 def _padrao_base() -> dict:
-    """Veículo típico: mediana (numéricas) ou moda (categóricas) dos veículos de Combustão da base."""
+    """Veículo típico: mediana (numéricas) ou moda (categóricas) dos veículos de Combustão da base.
+
+    Sem a base local (ela não é versionada), usa o veículo típico salvo em veiculo_padrao.json.
+    """
+    if not caminho_base().exists():
+        return json.loads(VEICULO_PADRAO.read_text(encoding="utf-8"))
     combustao = carregar_base().query('propulsao == "Combustão"')
     padrao = {}
     for campo in CAMPOS:
@@ -109,12 +111,13 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
     def rotulo_categoria(codigo: str) -> str:
         return f"{codigo} – {CATEGORIAS[codigo]}"
 
-    st.subheader("Identificação")
+    st.subheader("Identification")
     c1, c2 = st.columns(2)
     propulsao = c1.selectbox(
-        "Propulsão",
+        ROTULOS["propulsao"],
         VALORES["propulsao"],
         key=chave_de("propulsao"),
+        format_func=_nome("propulsao"),
         on_change=_ao_mudar_propulsao,
         args=(chave,),
     )
@@ -145,7 +148,7 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
         ROTULOS["direcao"], VALORES["direcao"], key=chave_de("direcao"), format_func=_nome("direcao")
     )
 
-    st.subheader("Massa e inércia")
+    st.subheader("Mass and inertia")
     c1, c2, c3 = st.columns(3)
     massa = c1.number_input(
         ROTULOS["massa_om_kg"],
@@ -157,19 +160,19 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
     inercia = c2.number_input(ROTULOS["classe_inercia_kg"], key=chave_de("classe_inercia_kg"), step=1.0)
     pbt = c3.number_input(ROTULOS["pbt_kg"], key=chave_de("pbt_kg"), step=10.0)
 
-    st.subheader("Resistência ao rolamento e aerodinâmica")
+    st.subheader("Road load")
     referencia = pacote.referencias.get(categoria, {})
     c1, c2 = st.columns(2)
     f0 = c1.number_input(f"{ROTULOS['f0_n']} (N)", key=chave_de("f0_n"), step=1.0)
     if "f0_n" in referencia:
-        c1.caption(f"típico da categoria: {numero(referencia['f0_n'], 1)} N")
+        c1.caption(f"typical for the category: {numero(referencia['f0_n'], 1)} N")
     f2 = c2.number_input(
         f"{ROTULOS['f2_n_kmh2']} (N/(km/h)²)", key=chave_de("f2_n_kmh2"), step=0.001, format="%.4f"
     )
     if "f2_n_kmh2" in referencia:
-        c2.caption(f"típico da categoria: {numero(referencia['f2_n_kmh2'], 4)} N/(km/h)²")
+        c2.caption(f"typical for the category: {numero(referencia['f2_n_kmh2'], 4)} N/(km/h)²")
 
-    st.subheader("Motor, transmissão e bateria")
+    st.subheader("Powertrain and battery")
     c1, c2, c3 = st.columns(3)
     potencia = c1.number_input(ROTULOS["potencia_kw"], key=chave_de("potencia_kw"), step=1.0)
     cilindrada = c2.number_input(
@@ -200,11 +203,11 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
 
 
 def nome_padrao(nomes: list[str]) -> str:
-    """Próximo "Cenário N" ainda não usado."""
+    """Next "Scenario N" not used yet."""
     n = len(nomes) + 1
-    while f"Cenário {n}" in nomes:
+    while f"Scenario {n}" in nomes:
         n += 1
-    return f"Cenário {n}"
+    return f"Scenario {n}"
 
 
 def nome_livre(nome: str, nomes: list[str]) -> str:
@@ -215,6 +218,26 @@ def nome_livre(nome: str, nomes: list[str]) -> str:
     while f"{nome} ({n})" in nomes:
         n += 1
     return f"{nome} ({n})"
+
+
+_COMBUSTIVEIS = {
+    "gasolina": "gasoline",
+    "etanol": "ethanol",
+    "eletrico_eq": "electric equivalent",
+    "diesel": "diesel",
+}
+_CICLOS = {"": "combined", "urbano": "city", "estrada": "highway"}
+
+
+def nome_saida(saida: str) -> str:
+    """English name of a prediction output: mj_km_urbano -> MJ/km city, kml_etanol -> km/l ethanol combined."""
+    if saida.startswith("mj_km"):
+        return f"MJ/km {_CICLOS[saida.removeprefix('mj_km').lstrip('_')]}"
+    resto = saida.removeprefix("kml_")
+    for codigo, nome in _COMBUSTIVEIS.items():
+        if resto.startswith(codigo):
+            return f"km/l {nome} {_CICLOS[resto.removeprefix(codigo).lstrip('_')]}"
+    return saida
 
 
 def excel_cenarios(cenarios: list[dict]) -> bytes:
@@ -228,13 +251,13 @@ def excel_cenarios(cenarios: list[dict]) -> bytes:
     ]
     linhas = []
     for c in cenarios:
-        linha = {"Cenário": c["nome"]}
+        linha = {"Scenario": c["nome"]}
         linha.update({ROTULOS[campo]: c["veiculo"][campo] for campo in alteradas})
         for saida in SAIDAS:
-            nome = ROTULOS.get(saida, saida)
+            nome = nome_saida(saida)
             linha[nome] = c["resultado"][saida]
-            linha[f"{nome} (mín.)"] = c["resultado"][f"{saida}_min"]
-            linha[f"{nome} (máx.)"] = c["resultado"][f"{saida}_max"]
+            linha[f"{nome} (min.)"] = c["resultado"][f"{saida}_min"]
+            linha[f"{nome} (max.)"] = c["resultado"][f"{saida}_max"]
         linhas.append(linha)
     buffer = BytesIO()
     pd.DataFrame(linhas).to_excel(buffer, index=False)
