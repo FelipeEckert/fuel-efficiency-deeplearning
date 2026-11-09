@@ -1,10 +1,14 @@
-"""Página inicial do estimador de eficiência energética de veículos."""
+"""Roteador do app: navegação no topo entre as páginas."""
 
 import streamlit as st
 
-st.set_page_config(page_title="Eficiência energética", layout="wide")
-st.title("Eficiência energética de veículos")
-st.write("Estimativa de consumo (MJ/km e km/l) a partir das especificações técnicas, com faixa de incerteza.")
-st.page_link(
-    "pages/1_Veiculo.py", label="Veículo: estimativa, cenários e 'e se'", icon=":material/directions_car:"
-)
+st.set_page_config(layout="wide", page_title="Eficiência energética")
+st.navigation(
+    [
+        st.Page("pages/0_Inicial.py", title="Início", default=True),
+        st.Page("pages/1_Veiculo.py", title="Veículo"),
+        st.Page("pages/2_Portfolio.py", title="Portfólio"),
+        st.Page("pages/3_Comparacao.py", title="Comparação"),
+    ],
+    position="top",
+).run()
