@@ -82,9 +82,11 @@ def _ao_mudar_massa(chave: str) -> None:
 
 def _ao_mudar_propulsao(chave: str) -> None:
     propulsao = st.session_state[f"{chave}_propulsao"]
-    if propulsao in ("Plug-in", "Elétrico") and st.session_state[f"{chave}_autonomia_eletrica_km"] == 0:
-        base = carregar_base().query("propulsao == @propulsao")  # autonomia típica daquela propulsão
-        st.session_state[f"{chave}_autonomia_eletrica_km"] = float(base["autonomia_eletrica_km"].median())
+    if propulsao in ("Plug-in", "Elétrico"):
+        autonomia = carregar_base().query("propulsao == @propulsao")["autonomia_eletrica_km"]  # faixa típica
+        atual = st.session_state[f"{chave}_autonomia_eletrica_km"]
+        if atual == 0 or not autonomia.min() <= atual <= autonomia.max():
+            st.session_state[f"{chave}_autonomia_eletrica_km"] = float(autonomia.median())
     if st.session_state[f"{chave}_propulsao"] == "Elétrico":
         st.session_state[f"{chave}_combustivel"] = "eletrico"
         st.session_state[f"{chave}_transmissao"] = "direta"
@@ -97,7 +99,7 @@ def _ao_mudar_propulsao(chave: str) -> None:
 
 
 def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
-    """Desenha o formulário e devolve as entradas do veículo .
+    """Desenha o formulário e devolve as entradas do veículo.
 
     `chave` prefixa as chaves dos widgets, para o formulário poder ser usado mais de uma vez na página.
     Os valores iniciais vêm de `padrao` na primeira execução; depois, o que estiver nos widgets vale.

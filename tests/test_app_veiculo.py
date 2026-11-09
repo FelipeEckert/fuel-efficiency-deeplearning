@@ -236,3 +236,20 @@ def test_salvar_com_ajuste_invalido_guarda_o_original(pacote_rapido):
     at.button(key="salvar_cenario").click().run()
     salvo = at.session_state["cenarios"][0]
     assert salvo["veiculo"]["massa_om_kg"] == 9000.0
+
+
+def test_autonomia_acompanha_a_faixa_da_propulsao(pacote_rapido):
+    base = carregar_base()
+    faixa = {p: base.query("propulsao == @p")["autonomia_eletrica_km"] for p in ("Plug-in", "Elétrico")}
+    at = _pagina()
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    at.selectbox(key="veiculo_propulsao").set_value("Elétrico").run()
+    assert (
+        faixa["Elétrico"].min()
+        <= at.session_state["veiculo_autonomia_eletrica_km"]
+        <= faixa["Elétrico"].max()
+    )
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    assert (
+        faixa["Plug-in"].min() <= at.session_state["veiculo_autonomia_eletrica_km"] <= faixa["Plug-in"].max()
+    )

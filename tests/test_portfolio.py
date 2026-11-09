@@ -188,3 +188,9 @@ def test_faixa_da_media_sem_erros_oof_e_nan(pacote_rapido, monkeypatch):
     monkeypatch.setattr(pacote_rapido, "erros_oof", None)  # o pacote é compartilhado entre testes
     r = media_portfolio(_linhas_estimadas(), pacote_rapido)
     assert np.isnan(r.media_min) and np.isnan(r.media_max)
+
+
+def test_faixa_da_media_com_erros_oof_vazios_e_nan(pacote_rapido, monkeypatch):
+    monkeypatch.setattr(pacote_rapido, "erros_oof", {"Combustão": [], "Elétrico": []})
+    r = media_portfolio(_linhas_estimadas(), pacote_rapido)
+    assert np.isnan(r.media_min) and np.isnan(r.media_max)

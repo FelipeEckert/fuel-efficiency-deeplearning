@@ -109,9 +109,9 @@ def _faixa_media(tabela: pd.DataFrame, pacote: Pacote | None) -> tuple[float, fl
         media = float((tabela.volume * tabela.mj_km).sum() / tabela.volume.sum())
         return media, media
     erros = getattr(pacote, "erros_oof", None)
-    if not erros:
+    todos = np.concatenate([np.asarray(v, float) for v in (erros or {}).values()] or [np.empty(0)])
+    if todos.size == 0:  # sem erros fora da amostra (ausentes ou listas vazias): não há faixa
         return nan, nan
-    todos = np.concatenate([np.asarray(v, float) for v in erros.values()])
     rng = np.random.default_rng(0)
     n = 2000
     mj = np.tile(tabela.mj_km.to_numpy(), (n, 1))
