@@ -60,10 +60,13 @@ def kml_eletrico_eq(mj_km):
     return FATOR_ELETRICO / mj_km
 
 
-def fatores_diesel(df: pd.DataFrame) -> tuple[float, float]:
-    urbano = (df["kml_diesel_urbano"] * df["mj_km_urbano"]).median()
-    estrada = (df["kml_diesel_estrada"] * df["mj_km_estrada"]).median()
-    return float(urbano), float(estrada)
+def fatores_kml(df: pd.DataFrame) -> dict[str, tuple[float, float]]:
+    """Mediana de km/l × MJ/km (urbano, estrada) por combustível, nas linhas Combustão e Híbrido."""
+    d = df[df["propulsao"].isin(["Combustão", "Híbrido"])]
+    return {
+        comb: tuple(float((d[f"kml_{comb}_{c}"] * d[f"mj_km_{c}"]).median()) for c in ("urbano", "estrada"))
+        for comb in ("gasolina", "etanol", "diesel")
+    }
 
 
 def kml_diesel(mj_km, fator: float):

@@ -19,7 +19,7 @@ class Pacote:
     modelo: Candidato
     quantis: dict[str, dict[str, float]]
     faixas: dict
-    fatores_diesel: tuple[float, float]
+    fatores_kml: dict[str, tuple[float, float]]
     referencias: dict[str, dict[str, float]]
     metadados: dict
 

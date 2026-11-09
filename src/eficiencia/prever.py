@@ -51,8 +51,8 @@ def _registro(pacote: Pacote, veiculo: dict, previsto: dict) -> dict:
     mj_total = combinar_mj(mj["urbano"], mj["estrada"])
     _saida(r, "mj_km", mj_total, _faixa(mj_total, _quantil(pacote, p, "mj_km")))
 
-    # gasolina e etanol: previstos pelo modelo, só onde o combustível se aplica
-    for comb in ("gasolina", "etanol"):
+    # plug-in: gasolina e etanol saem do modelo (km/l × MJ/km não é constante); nos demais, do fator abaixo
+    for comb in ("gasolina", "etanol") if p == "Plug-in" else ():
         km = {}
         for c in CICLOS:
             nome = f"kml_{comb}_{c}"
@@ -61,11 +61,11 @@ def _registro(pacote: Pacote, veiculo: dict, previsto: dict) -> dict:
         total = combinar_kml(km["urbano"], km["estrada"])
         _saida(r, f"kml_{comb}", total, _faixa(total, _quantil(pacote, p, f"kml_{comb}")))
 
-    # eletrico_eq = kml_diesel com FATOR_ELETRICO; faixa do km/l = fator / faixa do MJ/km (inverte mín. e máx.)
-    for comb, (fator_u, fator_e) in (
-        ("eletrico_eq", (FATOR_ELETRICO, FATOR_ELETRICO)),
-        ("diesel", pacote.fatores_diesel),
-    ):
+    # km/l = fator / MJ/km; a faixa do km/l é fator / faixa do MJ/km (inverte mín. e máx.)
+    derivados = [("eletrico_eq", (FATOR_ELETRICO, FATOR_ELETRICO)), ("diesel", pacote.fatores_kml["diesel"])]
+    if p != "Plug-in":
+        derivados += [(c, pacote.fatores_kml[c]) for c in ("gasolina", "etanol")]
+    for comb, (fator_u, fator_e) in derivados:
         ativo = comb in aplicaveis
         km = {}
         for c, fator in zip(CICLOS, (fator_u, fator_e)):

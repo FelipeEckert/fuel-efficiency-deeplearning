@@ -6,7 +6,7 @@ from eficiencia.fisica import (
     combinar_kml,
     combinar_mj,
     combustiveis_aplicaveis,
-    fatores_diesel,
+    fatores_kml,
     kml_eletrico_eq,
 )
 
@@ -22,9 +22,11 @@ def test_combinar():
     assert kml_eletrico_eq(0.5) == pytest.approx(40.58)
 
 
-def test_fatores_diesel():
-    urb, est = fatores_diesel(carregar_base())
-    assert urb == pytest.approx(27.96, abs=0.05) and est == pytest.approx(25.57, abs=0.05)
+def test_fatores_kml():
+    f = fatores_kml(carregar_base())
+    assert f["gasolina"] == pytest.approx((22.4, 20.5), abs=0.2)
+    assert f["etanol"] == pytest.approx((15.5, 14.4), abs=0.2)
+    assert f["diesel"] == pytest.approx((27.96, 25.57), abs=0.05)
 
 
 @pytest.mark.parametrize(
