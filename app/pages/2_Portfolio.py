@@ -201,6 +201,10 @@ with topo:
                 st.warning(f"{linha.nome}: {aviso}")
         media = resultado.media_mj_km
         st.metric("MJ/km médio do portfólio", "—" if pd.isna(media) else f"{numero(media, 2)} MJ/km")
+        if not pd.isna(resultado.media_min) and resultado.media_min < resultado.media_max:
+            st.caption(
+                f"faixa de 90 %: {numero(resultado.media_min, 2)} a {numero(resultado.media_max, 2)} MJ/km"
+            )
         pct = 100 * resultado.volume_incluido / resultado.volume_total if resultado.volume_total else 0
         st.caption(
             f"{resultado.n_incluidos} de {resultado.n_total} veículos incluídos ({numero(pct, 1)} % do volume)"

@@ -123,3 +123,18 @@ def test_grafico_por_propulsao(pacote_rapido):
     at = _pagina(_tabela([("Carro A", 100, 1.5), ("Carro B", 300, 2.0)]))
     assert not at.exception
     assert len(at.get("plotly_chart")) >= 1
+
+
+def test_faixa_de_90_aparece_com_estimados(pacote_rapido):
+    from eficiencia.esquema import ENTRADAS, carregar_base
+
+    df = _tabela([("Carro A", 100, 1.5)])
+    for i, (_, v) in enumerate(carregar_base()[ENTRADAS].iloc[:3].iterrows()):
+        df.loc[len(df)] = {
+            **{c: np.nan for c in COLUNAS_PORTFOLIO},
+            "nome": f"v{i}",
+            "volume": 100,
+            **v.to_dict(),
+        }
+    at = _pagina(df)
+    assert any("faixa de 90 %" in c.value for c in at.caption)

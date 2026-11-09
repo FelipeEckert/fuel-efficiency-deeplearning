@@ -51,6 +51,8 @@ class ResultadoPortfolio:
     n_total: int
     volume_incluido: float
     volume_total: float
+    media_min: float = nan  # faixa de 90 % da média: NaN sem erros_oof ou sem linhas estimadas
+    media_max: float = nan
 
 
 def modelo_planilha() -> bytes:
@@ -98,6 +100,28 @@ def totais_portfolio(df: pd.DataFrame) -> tuple[int, float]:
     """Número de veículos e volume da tabela inteira; volume inválido conta como zero."""
     volumes = [_volume(v) for v in df["volume"]]
     return len(df), float(sum(v for v in volumes if v is not None and v > 0))
+
+
+def _faixa_media(tabela: pd.DataFrame, pacote: Pacote | None) -> tuple[float, float]:
+    """Faixa de 90 % da média ponderada: reamostra os erros fora da amostra das linhas estimadas."""
+    est = (tabela.origem == "estimado").to_numpy()
+    if not est.any():
+        media = float((tabela.volume * tabela.mj_km).sum() / tabela.volume.sum())
+        return media, media
+    erros = getattr(pacote, "erros_oof", None)
+    if not erros:
+        return nan, nan
+    todos = np.concatenate([np.asarray(v, float) for v in erros.values()])
+    rng = np.random.default_rng(0)
+    n = 2000
+    mj = np.tile(tabela.mj_km.to_numpy(), (n, 1))
+    # shortcut: sorteios independentes entre carros; a faixa sai estreita se os erros de carros parecidos
+    # forem correlacionados. Com mais dados, sortear por grupo (modelo/marca) em vez de por carro.
+    for j in np.flatnonzero(est):
+        fonte = np.asarray(erros.get(tabela.propulsao.iloc[j], todos), float)
+        mj[:, j] *= 1 + rng.choice(fonte if fonte.size else todos, n)
+    medias = mj @ tabela.volume.to_numpy() / tabela.volume.sum()
+    return tuple(float(x) for x in np.percentile(medias, [5, 95]))
 
 
 def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> ResultadoPortfolio:
@@ -159,6 +183,7 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
     total = tabela.volume.sum()
     media = float((tabela.volume * tabela.mj_km).sum() / total) if total > 0 else nan
     n_total, volume_total = totais_portfolio(df)
+    media_min, media_max = _faixa_media(tabela, pacote) if total > 0 else (nan, nan)
     return ResultadoPortfolio(
         tabela=tabela,
         media_mj_km=media,
@@ -169,4 +194,6 @@ def media_portfolio(df: pd.DataFrame, pacote: Pacote | None = None) -> Resultado
         n_total=n_total,
         volume_incluido=float(total),
         volume_total=volume_total,
+        media_min=media_min,
+        media_max=media_max,
     )
