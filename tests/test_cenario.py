@@ -39,3 +39,19 @@ def test_varredura_f2_monotona_e_sem_saltos_maiores(pacote_rapido, veiculos):
             bruto.append(_bruto(m, alt) / _bruto(m, v))
         assert np.all(np.diff(suave) >= -1e-12)
         assert np.diff(suave).max() <= np.diff(bruto).max() + 1e-12
+
+
+def test_escalar_saidas_mantem_kml_vezes_mj(pacote_rapido, veiculos):
+    from eficiencia.cenario import escalar_saidas
+    from eficiencia.prever import prever
+
+    linha = prever(veiculos[0], pacote_rapido).iloc[0]
+    nova = escalar_saidas(linha, 1.07)
+    assert nova.mj_km == pytest.approx(linha.mj_km * 1.07)
+    for s in ("gasolina_urbano", "etanol_estrada", "eletrico_eq"):
+        for suf in ("", "_min", "_max"):
+            a, b = linha[f"kml_{s}{suf}"], nova[f"kml_{s}{suf}"]
+            assert (pd.isna(a) and pd.isna(b)) or b == pytest.approx(a / 1.07)
+    ref = "mj_km_urbano"
+    if pd.notna(linha.kml_gasolina_urbano):
+        assert nova.kml_gasolina_urbano * nova[ref] == pytest.approx(linha.kml_gasolina_urbano * linha[ref])

@@ -14,7 +14,7 @@ from formulario import NOMES_VALORES, excel_cenarios, formulario_veiculo, modelo
 from visual import CORES, NOMES, html_arvore, html_rede
 
 from eficiencia.arvore import caminho_arvore
-from eficiencia.cenario import fator_suave
+from eficiencia.cenario import escalar_saidas, fator_suave
 from eficiencia.entrada import validar
 from eficiencia.esquema import ROTULOS
 from eficiencia.explicar import explicar, explicavel
@@ -192,8 +192,7 @@ def _e_se(pacote, alterado: dict, original: pd.Series, original_dict: dict) -> p
         return None
     ori, alt = (validar(pd.DataFrame([v]))[0].iloc[0].to_dict() for v in (original_dict, alterado))
     escala = original.mj_km * fator_suave(pacote.modelo, ori, alt) / novo.mj_km
-    novo = novo.copy()
-    novo[["mj_km", "mj_km_min", "mj_km_max"]] *= escala  # medidor, métrica e cenários usam o valor suavizado
+    novo = escalar_saidas(novo, escala)  # medidor, métrica, km/l e cenários usam o valor suavizado
     _medidor(original, novo)
     st.caption("Variação suavizada: média das previsões em ±5 % em torno de cada ajuste.")
     diferenca = novo.mj_km - original.mj_km

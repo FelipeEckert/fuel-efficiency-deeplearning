@@ -5,6 +5,7 @@ import pandas as pd
 
 from eficiencia.esquema import ENTRADAS
 from eficiencia.fisica import classe_inercia, combinar_mj
+from eficiencia.prever import SAIDAS
 
 _DELTAS = np.linspace(-0.05, 0.05, 11)
 _AJUSTADAS = ["massa_om_kg", "f0_n", "f2_n_kmh2", "potencia_kw"]
@@ -26,3 +27,12 @@ def fator_suave(modelo, original: dict, alterado: dict) -> float:
     """Razão alterado/original do MJ/km combinado, média sobre ±5 % conjunto de massa, F0, F2 e potência."""
     ori, alt = _media(modelo, [original, alterado])  # uma só chamada ao modelo
     return float(alt / ori)
+
+
+def escalar_saidas(previsao: pd.Series, escala: float) -> pd.Series:
+    """MJ/km × escala e km/l ÷ escala (com _min/_max), mantendo km/l × MJ/km coerente; NaN segue NaN."""
+    nova = previsao.copy()
+    for s in SAIDAS:
+        for c in (s, f"{s}_min", f"{s}_max"):
+            nova[c] = nova[c] * escala if s.startswith("mj_km") else nova[c] / escala
+    return nova
