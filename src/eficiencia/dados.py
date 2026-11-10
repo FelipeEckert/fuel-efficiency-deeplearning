@@ -50,6 +50,7 @@ COLUNAS = {
     49: "lcvm",
     50: "nome_homologado",
     52: "bateria_kwh",
+    78: "autonomia_eletrica_km",  # "Autonomia no modo Elétrico Corrigida (km)"
     # alvos (valores corrigidos = os publicados na etiqueta)
     60: "kml_etanol_urbano",
     61: "kml_gasolina_urbano",
@@ -82,6 +83,7 @@ FEATURES = [
     "n_marchas",
     "direcao",
     "bateria_kwh",
+    "autonomia_eletrica_km",
 ]
 CV_PARA_KW = 0.7355
 
@@ -226,6 +228,7 @@ def limpar(caminho=ENTRADA):
         "pbt_kg",
         "classe_inercia_kg",
         "bateria_kwh",
+        "autonomia_eletrica_km",
         *ALVOS,
     ]:
         df[c] = df[c].map(num)
@@ -246,6 +249,8 @@ def limpar(caminho=ENTRADA):
     df.loc[df["propulsao"].eq("Elétrico"), "cilindrada_cm3"] = 0.0
     # combustão não tem bateria de tração (a Honda informou os 60 Ah da bateria 12 V nesse campo)
     df.loc[df["propulsao"].eq("Combustão"), "bateria_kwh"] = 0.0
+    # só Plug-in e Elétrico rodam em modo elétrico: nos demais a autonomia é 0
+    df.loc[df["propulsao"].isin(["Combustão", "Híbrido"]), "autonomia_eletrica_km"] = 0.0
     # formatos válidos: LC12233, 19437, 10945/24, SL64402; "N.A.", "Isento", "xxxx" e o "0.3248…" do Tank 300 viram vazio
     df["lcvm"] = txt("lcvm").where(lambda s: s.str.fullmatch(LCVM_VALIDO))
 
@@ -328,6 +333,11 @@ def checar(df):
     assert df["combustivel"].notna().all() and df["propulsao"].notna().all()
     assert (df.loc[df["propulsao"].eq("Combustão"), "bateria_kwh"] == 0).all()
     assert df["bateria_kwh"].notna().all(), "bateria sem valor"
+    aut = df["autonomia_eletrica_km"]
+    assert (aut[~df["propulsao"].isin(["Plug-in", "Elétrico"])] == 0).all(), (
+        "autonomia fora de Plug-in/Elétrico"
+    )
+    assert aut.dropna().between(0, 2000).all(), "autonomia fora da faixa"
     assert df["cilindrada_cm3"].notna().all(), "cilindrada sem valor"
     assert (df.loc[df["propulsao"].ne("Elétrico"), "cilindrada_cm3"] > 500).all()
     assert (df.loc[df["propulsao"].eq("Elétrico"), "bateria_kwh"] > 10).all()

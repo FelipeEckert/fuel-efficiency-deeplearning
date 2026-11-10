@@ -19,8 +19,11 @@ LIMITES_FISICOS = {
     "cilindrada_cm3": (0, 10000),
     "n_marchas": (0, 12),
     "bateria_kwh": (0, 300),
+    "autonomia_eletrica_km": (0, 2000),
 }
-OPCIONAIS = ("n_marchas", "bateria_estimada")  # bateria_kwh é obrigatória só fora de Combustão
+OPCIONAIS = (
+    "n_marchas",
+)  # bateria_kwh (fora de Combustão) e autonomia_eletrica_km (Plug-in e Elétrico) têm regra própria
 
 
 def _chave(texto: str) -> str:
@@ -97,10 +100,10 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
         problemas: list[str] = []
         limpo: dict = {}
         for coluna in ENTRADAS:
-            if coluna == "bateria_estimada":  # sempre falsa: a bateria é informada, nunca estimada aqui
-                continue
             if coluna == "bateria_kwh":
                 obrigatorio = limpo.get("propulsao") not in (None, "Combustão")
+            elif coluna == "autonomia_eletrica_km":
+                obrigatorio = limpo.get("propulsao") in ("Plug-in", "Elétrico")
             elif coluna == "cilindrada_cm3":
                 obrigatorio = limpo.get("propulsao") not in (None, "Elétrico")
             else:
@@ -117,6 +120,7 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
         for campo, propulsoes in (
             ("cilindrada_cm3", ("Combustão", "Híbrido", "Plug-in")),
             ("bateria_kwh", ("Híbrido", "Plug-in", "Elétrico")),
+            ("autonomia_eletrica_km", ("Plug-in", "Elétrico")),
         ):
             valor = limpo.get(campo)
             if prop in propulsoes and isinstance(valor, float) and not math.isnan(valor) and valor <= 0:
@@ -127,7 +131,8 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
             limpo["bateria_kwh"] = 0.0
         if prop == "Elétrico":
             limpo["cilindrada_cm3"] = 0.0
-        limpo["bateria_estimada"] = False
+        if prop in ("Combustão", "Híbrido"):
+            limpo["autonomia_eletrica_km"] = 0.0
         erros += [f"row {n}: {p}" for p in problemas]
         if not problemas:
             linhas.append(limpo)

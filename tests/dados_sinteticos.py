@@ -110,6 +110,8 @@ def gerar(n: int = 420, semente: int = 0) -> pd.DataFrame:
                 "n_marchas": marchas,
                 "direcao": str(rng.choice(["eletrica", "hidraulica"], p=[0.93, 0.07])),
                 "bateria_kwh": round(bateria, 1),
+                # electric range follows the battery (about 5 km/kWh on electric, 4 on plug-in), 0 elsewhere
+                "autonomia_eletrica_km": round(bateria * {"Elétrico": 5.0, "Plug-in": 4.0}.get(prop, 0.0), 1),
                 **kml,
                 "mj_km_urbano": mj_urbano,
                 "mj_km_estrada": mj_estrada,

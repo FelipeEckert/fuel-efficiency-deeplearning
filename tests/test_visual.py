@@ -64,6 +64,8 @@ NOS = [
 def test_pergunta_legivel():
     assert pergunta(NOS[0]) == "Battery (kWh) < 12?"
     assert pergunta(NOS[1]) == "Powertrain is Electric?"
+    no = {"coluna": "autonomia_eletrica_km", "categoria": None, "limite": 42.4}
+    assert pergunta(no) == "Electric range (km) < 42?"
 
 
 def test_html_arvore_anima_so_o_caminho():

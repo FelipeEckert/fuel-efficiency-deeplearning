@@ -202,3 +202,23 @@ Each item would be its own plan and pull request. Nothing in the published model
   - `cerca` (search space): 9h20;
   - `samplers`: 9h10;
   - `boosting`: 34h10, run later.
+
+## H8: new inputs (2026-11-09)
+
+Probes with XGBoost `cv_fixa`, the published hyperparameters held fixed, and fold seeds 0, 1 and 2. The comparison is paired: each variant runs on the same folds as the baseline.
+
+| Variant | MJ/km error (mean of 3) | Per seed | Plug-in per seed |
+|---|---|---|---|
+| Baseline | 5.83 % | 5.62 / 5.96 / 5.90 | 11.54 / 14.74 / 14.57 |
+| + electric range | 5.67 % | 5.56 / 5.76 / 5.68 | 11.58 / 13.67 / 12.82 |
+| − bateria_estimada | 5.76 % | 5.56 / 5.90 / 5.82 | 11.66 / 14.41 / 14.25 |
+| + cycle tractive energy (EPA FTP-75 and HWFET, positive part only) | 5.80 % | 5.69 / 5.84 / 5.88 | 12.16 / 14.44 / 14.65 |
+
+**Verdict:** electric range goes in and `bateria_estimada` comes out. Both improve on every seed: −0.16 points on average for the range, −0.07 for dropping the battery flag.
+- Cycle tractive energy stays out. It improves the mean by 0.03 points, within the noise, and is worse on seed 0.
+
+**Cycle source:** `https://www.epa.gov/sites/default/files/2015-10/ftpcol.txt` and `hwycol.txt`.
+
+**Caveat:** the range is the one measured in the homologation test. In use, what is available up front is the design range.
+
+**Full retrain (2026-11-10):** the 5 candidates with 100 trials per fold. XGBoost wins again with 5.71 % (was 5.77 %); the plug-in error stayed about the same (11.84 % → 12.07 %), so the probe gain on plug-ins did not survive the full nested search.

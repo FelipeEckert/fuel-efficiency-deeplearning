@@ -9,11 +9,10 @@ from eficiencia.formato import numero
 
 
 def calcular_faixas(df: pd.DataFrame) -> dict:
-    numericas = [c for c in NUMERICAS if c != "bateria_estimada"]
     faixas: dict = {"numericas": {}, "categoricas": {}}
     for propulsao, grupo in df.groupby("propulsao"):
         faixas["numericas"][propulsao] = {
-            c: (float(grupo[c].min()), float(grupo[c].max())) for c in numericas if grupo[c].notna().any()
+            c: (float(grupo[c].min()), float(grupo[c].max())) for c in NUMERICAS if grupo[c].notna().any()
         }
         faixas["categoricas"][propulsao] = {
             c: set(grupo[c].dropna()) for c in CATEGORICAS if grupo[c].notna().any()

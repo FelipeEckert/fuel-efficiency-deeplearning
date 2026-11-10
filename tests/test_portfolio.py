@@ -15,7 +15,7 @@ def test_media_ponderada_valores_reais():
 
 
 def test_mistura_real_e_estimado(pacote_rapido):
-    v = carregar_base()[ENTRADAS].iloc[0].drop("bateria_estimada").to_dict()
+    v = carregar_base()[ENTRADAS].iloc[0].to_dict()
     df = pd.DataFrame(
         [{"nome": "novo", "volume": 100, **v}, {"nome": "atual", "volume": 100, "mj_km_conhecido": 1.0}]
     )
@@ -124,6 +124,13 @@ def test_propulsao_invalida_em_linha_real_e_reportada():
     assert set(r.por_propulsao["propulsao"]) == {"not given"}
 
 
+def test_plug_in_sem_coluna_de_autonomia_e_erro_claro(pacote_rapido):
+    v = carregar_base().query('propulsao == "Plug-in"')[ENTRADAS].iloc[0].to_dict()
+    v.pop("autonomia_eletrica_km")
+    r = media_portfolio(pd.DataFrame([{"nome": "PHEV", "volume": 100, **v}]), pacote_rapido)
+    assert r.erros == ["row 1: Electric range (km) is required"]
+
+
 def test_ler_planilha_canoniza_categoricas_e_mantem_desconhecidas():
     buf = io.BytesIO()
     pd.DataFrame(
@@ -152,3 +159,38 @@ def test_totais_de_inclusao_e_volume():
     assert (r.n_incluidos, r.n_total) == (1, 3)
     assert (r.volume_incluido, r.volume_total) == (100, 400)
     assert len(r.erros) == 2
+
+
+def _linhas_estimadas(n=6):
+    base = carregar_base()[ENTRADAS].iloc[:n]
+    return pd.DataFrame(
+        [{"nome": f"v{i}", "volume": 100, **r.to_dict()} for i, (_, r) in enumerate(base.iterrows())]
+    )
+
+
+def test_faixa_da_media_so_com_conhecidos():
+    df = pd.DataFrame({"nome": ["A", "B"], "volume": [100, 300], "mj_km_conhecido": [1.5, 2.0]})
+    r = media_portfolio(df)
+    assert r.media_min == r.media_max == pytest.approx(r.media_mj_km)
+
+
+def test_faixa_da_media_com_estimados_e_mais_estreita(pacote_rapido):
+    r = media_portfolio(_linhas_estimadas(), pacote_rapido)
+    assert r.media_min < r.media_mj_km < r.media_max
+    t = r.tabela
+    larguras = ((t.mj_km_max - t.mj_km_min) / t.mj_km * t.volume).sum() / t.volume.sum()
+    assert (r.media_max - r.media_min) / r.media_mj_km < larguras
+    r2 = media_portfolio(_linhas_estimadas(), pacote_rapido)
+    assert (r2.media_min, r2.media_max) == (r.media_min, r.media_max)
+
+
+def test_faixa_da_media_sem_erros_oof_e_nan(pacote_rapido, monkeypatch):
+    monkeypatch.setattr(pacote_rapido, "erros_oof", None)  # o pacote é compartilhado entre testes
+    r = media_portfolio(_linhas_estimadas(), pacote_rapido)
+    assert np.isnan(r.media_min) and np.isnan(r.media_max)
+
+
+def test_faixa_da_media_com_erros_oof_vazios_e_nan(pacote_rapido, monkeypatch):
+    monkeypatch.setattr(pacote_rapido, "erros_oof", {"Combustão": [], "Elétrico": []})
+    r = media_portfolio(_linhas_estimadas(), pacote_rapido)
+    assert np.isnan(r.media_min) and np.isnan(r.media_max)

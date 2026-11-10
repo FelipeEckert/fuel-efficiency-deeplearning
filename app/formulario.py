@@ -42,7 +42,13 @@ CATEGORIAS = {
     "PC": "Compact pickup",
     "E": "Sports",
 }
-CAMPOS = [c for c in ENTRADAS if c != "bateria_estimada"]  # sempre False no app
+CAMPOS = list(ENTRADAS)
+# medianas do PBEV 2026 por propulsão: a base não é versionada, então os valores típicos ficam aqui
+TIPICOS = {
+    "Híbrido": {"bateria_kwh": 0.9},
+    "Plug-in": {"bateria_kwh": 19.4, "autonomia_eletrica_km": 61.2},
+    "Elétrico": {"bateria_kwh": 66.4, "autonomia_eletrica_km": 332.4},
+}
 
 
 def _nome(campo: str):
@@ -83,6 +89,13 @@ def _ao_mudar_massa(chave: str) -> None:
 
 
 def _ao_mudar_propulsao(chave: str) -> None:
+    propulsao = st.session_state[f"{chave}_propulsao"]
+    faixas = modelo().faixas["numericas"].get(propulsao, {})
+    for campo, mediana in TIPICOS.get(propulsao, {}).items():
+        minimo, maximo = faixas.get(campo, (mediana, mediana))
+        atual = st.session_state[f"{chave}_{campo}"]
+        if atual == 0 or not minimo <= atual <= maximo:  # zerado ou fora da faixa da propulsão vira a mediana
+            st.session_state[f"{chave}_{campo}"] = mediana
     if st.session_state[f"{chave}_propulsao"] == "Elétrico":
         st.session_state[f"{chave}_combustivel"] = "eletrico"
         st.session_state[f"{chave}_transmissao"] = "direta"
@@ -95,7 +108,7 @@ def _ao_mudar_propulsao(chave: str) -> None:
 
 
 def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
-    """Desenha o formulário e devolve as entradas do veículo (sem bateria_estimada).
+    """Desenha o formulário e devolve as entradas do veículo.
 
     `chave` prefixa as chaves dos widgets, para o formulário poder ser usado mais de uma vez na página.
     Os valores iniciais vêm de `padrao` na primeira execução; depois, o que estiver nos widgets vale.
@@ -179,9 +192,14 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
         ROTULOS["cilindrada_cm3"], key=chave_de("cilindrada_cm3"), step=10.0, disabled=eletrico
     )
     marchas = c3.number_input(ROTULOS["n_marchas"], key=chave_de("n_marchas"), step=1.0)
-    bateria = 0.0
+    bateria = autonomia = 0.0
     if propulsao != "Combustão":
-        bateria = st.number_input(ROTULOS["bateria_kwh"], key=chave_de("bateria_kwh"), step=1.0)
+        c1, c2 = st.columns(2)
+        bateria = c1.number_input(ROTULOS["bateria_kwh"], key=chave_de("bateria_kwh"), step=1.0)
+        if propulsao in ("Plug-in", "Elétrico"):
+            autonomia = c2.number_input(
+                ROTULOS["autonomia_eletrica_km"], key=chave_de("autonomia_eletrica_km"), step=1.0
+            )
 
     return {
         "propulsao": propulsao,
@@ -199,6 +217,7 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
         "cilindrada_cm3": 0.0 if eletrico else cilindrada,
         "n_marchas": marchas,
         "bateria_kwh": bateria,
+        "autonomia_eletrica_km": autonomia,
     }
 
 
@@ -246,8 +265,7 @@ def excel_cenarios(cenarios: list[dict]) -> bytes:
     alteradas = [
         campo
         for campo in ENTRADAS
-        if campo != "bateria_estimada"
-        and any(c["veiculo"][campo] != base[campo] and not pd.isna(c["veiculo"][campo]) for c in cenarios)
+        if any(c["veiculo"][campo] != base[campo] and not pd.isna(c["veiculo"][campo]) for c in cenarios)
     ]
     linhas = []
     for c in cenarios:

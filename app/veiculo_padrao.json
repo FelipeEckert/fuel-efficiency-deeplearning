@@ -13,5 +13,6 @@
   "potencia_kw": 129.4,
   "cilindrada_cm3": 1608.0,
   "n_marchas": 6.0,
-  "bateria_kwh": 0.0
+  "bateria_kwh": 0.0,
+  "autonomia_eletrica_km": 0.0
 }

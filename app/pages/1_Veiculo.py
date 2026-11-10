@@ -14,6 +14,7 @@ from formulario import excel_cenarios, formulario_veiculo, modelo, nome_livre, n
 from visual import CORES, NOMES, html_arvore, html_rede
 
 from eficiencia.arvore import caminho_arvore
+from eficiencia.cenario import escalar_saidas, fator_suave
 from eficiencia.entrada import validar
 from eficiencia.esquema import ROTULOS, nome_valor
 from eficiencia.explicar import explicar, explicavel
@@ -94,10 +95,10 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
     ciclo = st.radio("Cycle", list(CICLOS), format_func=CICLOS.get, horizontal=True, key="shap_ciclo")
     normalizado = (
         validar(pd.DataFrame([veiculo]))[0].iloc[0].to_dict()
-    )  # completa a bateria_estimada, como o prever
+    )  # zeroes what does not apply, like prever
     base, contribuicoes = explicar(pacote.modelo, normalizado, f"mj_km_{ciclo}")
     # entrar como eletrificado espalha o efeito por entradas que o validar zera; junta numa linha só
-    junta = ["propulsao", "combustivel", "bateria_kwh", "bateria_estimada"]
+    junta = ["propulsao", "combustivel", "bateria_kwh", "autonomia_eletrica_km"]
     if normalizado["cilindrada_cm3"] == 0:
         junta.append("cilindrada_cm3")
     rotulos = ROTULOS | {"propulsao_grupo": "Powertrain type", "demais": "Other inputs"}
@@ -110,7 +111,7 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
         f"Average vehicle in the data: {_fixo(math.exp(base), 2)} MJ/km × effects = "
         f"{_fixo(math.exp(base + contribuicoes.sum()), 2)} MJ/km. Each bar is how much the input "
         "raises (+) or lowers (−) consumption compared with it; the effects multiply. "
-        '"Powertrain type" groups powertrain, fuel and battery (and the zero displacement of electric cars).'
+        '"Powertrain type" groups powertrain, fuel, battery and electric range (and the zero displacement of electric cars).'
     )
     fig = go.Figure(
         go.Bar(
@@ -185,12 +186,16 @@ def _medidor(original: pd.Series, novo: pd.Series) -> None:
     st.plotly_chart(fig)
 
 
-def _e_se(pacote, alterado: dict, original: pd.Series) -> pd.Series | None:
+def _e_se(pacote, alterado: dict, original: pd.Series, original_dict: dict) -> pd.Series | None:
     """Medidor, métrica e avisos do veículo ajustado; devolve sua previsão (None, se o ajuste falhar)."""
     novo = _prever(pacote, alterado)
     if novo is None:
         return None
+    ori, alt = (validar(pd.DataFrame([v]))[0].iloc[0].to_dict() for v in (original_dict, alterado))
+    escala = original.mj_km * fator_suave(pacote.modelo, ori, alt) / novo.mj_km
+    novo = escalar_saidas(novo, escala)  # medidor, métrica, km/l e cenários usam o valor suavizado
     _medidor(original, novo)
+    st.caption("Smoothed change: average of the predictions within ±5 % around each adjustment.")
     diferenca = novo.mj_km - original.mj_km
     delta = (
         f"{_sinal(diferenca, 2)} MJ/km ({_sinal(diferenca / original.mj_km * 100, 1)} %) against the original"
@@ -298,7 +303,7 @@ caixa = esquerda.container(border=True)
 with caixa:
     alterado = _controles(veiculo)
 with direita:
-    novo = _e_se(pacote, alterado, original)
+    novo = _e_se(pacote, alterado, original, veiculo)
     if novo is None:  # invalid adjustment: the saved scenario is the original
         alterado, novo = veiculo, original
 with caixa:

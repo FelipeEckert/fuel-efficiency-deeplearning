@@ -1,16 +1,16 @@
 {
   "algoritmo": "xgboost",
   "params": {
-    "n_estimators": 969,
+    "n_estimators": 1178,
     "max_depth": 5,
-    "learning_rate": 0.032637691707401356,
-    "subsample": 0.6437132638022895,
-    "colsample_bytree": 0.5795595752000016,
-    "min_child_weight": 5,
-    "reg_lambda": 0.002883631811041725
+    "learning_rate": 0.03492377029556782,
+    "subsample": 0.6420182922473265,
+    "colsample_bytree": 0.6093514545082879,
+    "min_child_weight": 2,
+    "reg_lambda": 0.015516427527411565
   },
-  "data": "2026-11-05",
-  "hash_csv": "dd888117",
+  "data": "2026-11-10",
+  "hash_csv": "ad3d96d0",
   "rapido": false,
   "versoes": {
     "pandas": "3.1.0",
@@ -21,10 +21,10 @@
     "optuna": "5.0.0"
   },
   "tentativas": {
-    "linear": 900,
-    "floresta": 674,
+    "linear": 600,
+    "floresta": 600,
     "xgboost": 600,
-    "rede_por_alvo": 301,
-    "rede_multi": 300
+    "rede_por_alvo": 600,
+    "rede_multi": 600
   }
 }

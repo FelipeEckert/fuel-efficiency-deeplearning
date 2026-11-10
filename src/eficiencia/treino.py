@@ -16,9 +16,9 @@ from eficiencia.artefatos import PASTA_MODELO, Pacote, salvar
 from eficiencia.dados import RAIZ
 from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base, nome_valor
 from eficiencia.faixa import calcular_faixas
-from eficiencia.fisica import combinar_mj, fatores_diesel
+from eficiencia.fisica import combinar_mj, fatores_kml
 from eficiencia.formato import numero
-from eficiencia.incerteza import calcular_quantis
+from eficiencia.incerteza import calcular_quantis, erros_relativos
 from eficiencia.modelos import CANDIDATOS, NOMES_MODELOS
 from eficiencia.monotonia import checar_monotonia
 from eficiencia.validacao import buscar_params, cv_aninhada, hash8, prefixo_estudo
@@ -141,8 +141,9 @@ def treinar(
         modelo=modelos[vencedor],
         quantis=calcular_quantis(df, resultados[vencedor].oof),
         faixas=calcular_faixas(df),
-        fatores_diesel=fatores_diesel(df),
+        fatores_kml=fatores_kml(df),
         referencias=_referencias(df),
+        erros_oof=erros_relativos(df, resultados[vencedor].oof),
         metadados=metadados,
     )
     salvar(pacote, pasta_modelo)

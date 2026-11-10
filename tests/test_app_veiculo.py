@@ -45,6 +45,21 @@ def test_explicacao_sem_erro_nos_dois_ciclos(pacote_rapido):
     assert not at.exception
 
 
+def test_plug_in_com_autonomia_calcula_e_soma_na_propulsao(pacote_rapido):
+    at = _pagina()
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    assert at.session_state["veiculo_autonomia_eletrica_km"] > 0  # mediana dos Plug-in da base
+    assert at.session_state["veiculo_bateria_kwh"] > 0  # idem: trocar de propulsão já calcula, sem erro
+    assert not at.error and any("MJ/km" in m.label for m in at.metric)
+    at.number_input(key="veiculo_bateria_kwh").set_value(12.0).run()
+    assert not at.exception and any("MJ/km" in m.label for m in at.metric)
+    if explicavel(pacote_rapido.modelo):
+        rotulos = json.loads(at.get("plotly_chart")[1].proto.spec)["data"][0]["y"]
+        assert ROTULOS["autonomia_eletrica_km"] not in rotulos
+    at.selectbox(key="veiculo_propulsao").set_value("Combustão").run()
+    assert not at.exception
+
+
 def test_salvar_cenario(pacote_rapido):
     at = _pagina()
     at.button(key="salvar_cenario").click().run()
@@ -127,7 +142,8 @@ def test_exportar_excel(pacote_rapido):
 
 def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()
-    at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()  # bateria padrão é 0
+    at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()
+    at.number_input(key="veiculo_bateria_kwh").set_value(0.0).run()
     assert any("Battery" in e.value for e in at.error)
 
 
@@ -224,3 +240,20 @@ def test_salvar_com_ajuste_invalido_guarda_o_original(pacote_rapido):
     at.button(key="salvar_cenario").click().run()
     salvo = at.session_state["cenarios"][0]
     assert salvo["veiculo"]["massa_om_kg"] == 9000.0
+
+
+def test_autonomia_acompanha_a_faixa_da_propulsao(pacote_rapido):
+    base = carregar_base()
+    faixa = {p: base.query("propulsao == @p")["autonomia_eletrica_km"] for p in ("Plug-in", "Elétrico")}
+    at = _pagina()
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    at.selectbox(key="veiculo_propulsao").set_value("Elétrico").run()
+    assert (
+        faixa["Elétrico"].min()
+        <= at.session_state["veiculo_autonomia_eletrica_km"]
+        <= faixa["Elétrico"].max()
+    )
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    assert (
+        faixa["Plug-in"].min() <= at.session_state["veiculo_autonomia_eletrica_km"] <= faixa["Plug-in"].max()
+    )

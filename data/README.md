@@ -69,7 +69,8 @@ Column names are in Portuguese, as in the code.
 | `n_marchas` | number of gears; empty for CVT/DHT |
 | `direcao` | steering: eletrica, hidraulica, eletro-hidraulica |
 | `bateria_kwh` | nominal battery capacity (kWh); 0 for combustion; no gaps |
-| `bateria_estimada` | True when the battery came from inference or the median (17 hybrids) |
+| `autonomia_eletrica_km` | corrected electric-mode range (km), column 78 of the spreadsheet; 0 for combustion and hybrid; present for all 159 plug-in and electric vehicles |
+| `bateria_estimada` | quality flag, not a model input: True when the battery came from inference or the median (17 hybrids) |
 
 **Targets** (corrected values, the ones on the label; empty when not applicable)
 

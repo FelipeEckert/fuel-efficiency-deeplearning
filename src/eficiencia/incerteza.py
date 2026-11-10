@@ -1,4 +1,7 @@
-"""Faixas de incerteza por quantil conformal dos erros relativos em validação cruzada (out-of-fold)."""
+"""Faixas de incerteza por quantil conformal dos erros em validação cruzada (out-of-fold).
+
+O erro é relativo ao previsto, |real − previsto| / previsto, pois a faixa é previsto × (1 ± q):
+dividir pelo real deixaria a faixa com cobertura menor que a nominal."""
 
 import math
 
@@ -40,11 +43,20 @@ def calcular_quantis(df: pd.DataFrame, oof: pd.DataFrame, nivel: float = 0.9) ->
             pares = pd.concat([real.rename("real"), previsto.rename("previsto")], axis=1).dropna()
             if pares.empty:
                 continue
-            erros = ((pares["real"] - pares["previsto"]).abs() / pares["real"].abs()).sort_values().to_numpy()
+            erros = (
+                ((pares["real"] - pares["previsto"]).abs() / pares["previsto"].abs()).sort_values().to_numpy()
+            )
             n = len(erros)
             posicao = min(math.ceil(round((n + 1) * nivel, 9)), n)
             quantis[propulsao][saida] = float(erros[posicao - 1])
     return quantis
+
+
+def erros_relativos(df: pd.DataFrame, oof: pd.DataFrame) -> dict[str, list[float]]:
+    """Erros (real − previsto) / previsto do MJ/km combinado por propulsão, com sinal."""
+    real, previsto = _real_e_previsto(df, oof, "mj_km")
+    erros = ((real - previsto) / previsto.abs()).dropna()
+    return {p: erros[df.loc[erros.index, "propulsao"] == p].tolist() for p in df["propulsao"].unique()}
 
 
 def aplicar(previsto: float, q: float) -> tuple[float, float]:

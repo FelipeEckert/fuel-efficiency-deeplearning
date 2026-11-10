@@ -16,7 +16,7 @@ class Preprocessador:
     @staticmethod
     def _numericas(X: pd.DataFrame) -> pd.DataFrame:
         N = X[NUMERICAS].astype(float)
-        # vazio em CVT/DHT significa "sem marcha fixa"; bateria_estimada (bool) vira 0/1 pelo astype
+        # vazio em CVT/DHT significa "sem marcha fixa"
         N["n_marchas"] = N["n_marchas"].fillna(0)
         return N
 
