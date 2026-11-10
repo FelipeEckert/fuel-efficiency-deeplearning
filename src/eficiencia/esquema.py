@@ -1,5 +1,6 @@
-"""Colunas do modelo: entradas, alvos, valores categóricos e rótulos em pt-BR."""
+"""Model columns: inputs, targets, category values, and English labels for the interface."""
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -59,30 +60,65 @@ VALORES: dict[str, list[str]] = {
 }
 
 ROTULOS: dict[str, str] = {
-    "propulsao": "Propulsão",
-    "combustivel": "Combustível",
-    "categoria": "Categoria",
-    "categoria_proconve": "Categoria PROCONVE",
-    "transmissao": "Transmissão",
-    "direcao": "Direção",
-    "massa_om_kg": "Massa em ordem de marcha (kg)",
-    "classe_inercia_kg": "Classe de inércia (kg)",
-    "pbt_kg": "PBT (kg)",
+    "propulsao": "Powertrain",
+    "combustivel": "Fuel",
+    "categoria": "Category",
+    "categoria_proconve": "PROCONVE category",
+    "transmissao": "Transmission",
+    "direcao": "Steering",
+    "massa_om_kg": "Curb mass (kg)",
+    "classe_inercia_kg": "Inertia class (kg)",
+    "pbt_kg": "Gross vehicle weight (kg)",
     "f0_n": "F0",
     "f2_n_kmh2": "F2",
-    "potencia_kw": "Potência (kW)",
-    "cilindrada_cm3": "Cilindrada (cm³)",
-    "n_marchas": "Número de marchas",
-    "bateria_kwh": "Bateria (kWh)",
-    "autonomia_eletrica_km": "Autonomia elétrica (km)",
-    "mj_km_urbano": "MJ/km urbano",
-    "mj_km_estrada": "MJ/km estrada",
-    "kml_gasolina_urbano": "km/l gasolina urbano",
-    "kml_gasolina_estrada": "km/l gasolina estrada",
-    "kml_etanol_urbano": "km/l etanol urbano",
-    "kml_etanol_estrada": "km/l etanol estrada",
+    "potencia_kw": "Power (kW)",
+    "cilindrada_cm3": "Displacement (cm³)",
+    "n_marchas": "Number of gears",
+    "bateria_kwh": "Battery (kWh)",
+    "autonomia_eletrica_km": "Electric range (km)",
+    "mj_km_urbano": "MJ/km city",
+    "mj_km_estrada": "MJ/km highway",
+    "kml_gasolina_urbano": "km/l gasoline city",
+    "kml_gasolina_estrada": "km/l gasoline highway",
+    "kml_etanol_urbano": "km/l ethanol city",
+    "kml_etanol_estrada": "km/l ethanol highway",
+}
+
+# English display names for the category codes; the data keeps the original PBEV codes
+NOMES_VALORES: dict[str, dict[str, str]] = {
+    "propulsao": {
+        "Combustão": "Combustion",
+        "Elétrico": "Electric",
+        "Híbrido": "Hybrid",
+        "Plug-in": "Plug-in hybrid",
+    },
+    "combustivel": {
+        "gasolina": "Gasoline",
+        "flex": "Flex (gasoline/ethanol)",
+        "diesel": "Diesel",
+        "eletrico": "Electric",
+    },
+    "transmissao": {
+        "automatica": "Automatic",
+        "manual": "Manual",
+        "cvt": "CVT",
+        "dct": "Dual clutch (DCT)",
+        "dht": "Dedicated hybrid (DHT)",
+        "direta": "Direct drive (1 gear)",
+    },
+    "direcao": {"eletrica": "Electric", "hidraulica": "Hydraulic", "eletro-hidraulica": "Electro-hydraulic"},
 }
 
 
-def carregar_base(caminho: Path = CAMINHO_BASE) -> pd.DataFrame:
-    return pd.read_csv(caminho, dtype={"lcvm": str})
+def nome_valor(coluna: str, codigo) -> str:
+    """English name of a category code, or the code itself when it has none."""
+    return NOMES_VALORES.get(coluna, {}).get(codigo, str(codigo))
+
+
+def caminho_base() -> Path:
+    """Clean table path; EFICIENCIA_BASE points elsewhere (the tests use a synthetic table)."""
+    return Path(os.environ.get("EFICIENCIA_BASE", CAMINHO_BASE))
+
+
+def carregar_base(caminho: Path | None = None) -> pd.DataFrame:
+    return pd.read_csv(caminho or caminho_base(), dtype={"lcvm": str})

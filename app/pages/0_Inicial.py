@@ -1,28 +1,30 @@
-"""Página inicial do estimador de eficiência energética de veículos."""
+"""Home page of the vehicle energy efficiency estimator."""
 
 import streamlit as st
 
-st.title("Eficiência energética de veículos")
-st.write("Estimativa de consumo (MJ/km e km/l) a partir das especificações técnicas, com faixa de incerteza.")
+st.title("Vehicle energy efficiency")
+st.write(
+    "Estimates energy consumption (MJ/km and km/l) from technical specifications, with an uncertainty range."
+)
 
 CARTOES = [
     (
         "pages/1_Veiculo.py",
-        "Veículo",
+        "Vehicle",
         ":material/directions_car:",
-        "Estime o consumo de um veículo e teste o 'e se'.",
+        "Estimate one vehicle and try what-if changes.",
     ),
     (
         "pages/2_Portfolio.py",
-        "Portfólio",
+        "Portfolio",
         ":material/query_stats:",
-        "Veja o consumo estimado de vários veículos.",
+        "Get the sales-weighted consumption of several vehicles.",
     ),
     (
         "pages/3_Comparacao.py",
-        "Comparação",
+        "Comparison",
         ":material/compare_arrows:",
-        "Compare os modelos candidatos do último treino.",
+        "Compare the candidate models from the latest training run.",
     ),
 ]
 for coluna, (pagina, rotulo, icone, frase) in zip(st.columns(3), CARTOES, strict=True):

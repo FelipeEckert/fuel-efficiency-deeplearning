@@ -1,4 +1,4 @@
-"""Página Comparação: candidatos do último treino, com erro por propulsão, monotonia e figuras do relatório."""
+"""Comparison page: candidates from the latest training run, with error by powertrain, monotonicity and the report figures."""
 
 import json
 import os
@@ -13,13 +13,17 @@ import streamlit as st
 from visual import CORES, NOMES
 
 from eficiencia.dados import RAIZ
+from eficiencia.esquema import nome_valor
 from eficiencia.formato import numero
 
 ORDEM_PROPULSAO = ["Combustão", "Híbrido", "Plug-in", "Elétrico"]  # as demais vêm depois, em ordem alfabética
-FIGURAS = {"erro_por_propulsao.png": "Erro por propulsão", "previsto_real.png": "Previsto × real do vencedor"}
+FIGURAS = {
+    "erro_por_propulsao.png": "Error by powertrain",
+    "previsto_real.png": "Predicted vs. label MJ/km for the selected model",
+}
 MAX_VIOLACOES = 10
 MSG_CORROMPIDO = (
-    "Relatório de treino incompleto ou corrompido. Rode o treino de novo: uv run eficiencia-treinar"
+    "The training report is incomplete or corrupted. Run the training again: uv run eficiencia-treinar"
 )
 
 
@@ -56,30 +60,35 @@ def _propulsoes(candidatos: dict) -> list[str]:
 
 def _tabela(candidatos: dict, vencedor: str) -> pd.DataFrame:
     propulsoes = _propulsoes(candidatos)
-    rotulos = {"aprovado": "✅ aprovado", "reprovado": "❌ reprovado"}
+    rotulos = {"aprovado": "✅ pass", "reprovado": "❌ fail"}
     linhas = []
     for nome, c in sorted(candidatos.items(), key=lambda item: item[1]["erro_mj"]):
         modelo = NOMES.get(nome, nome)
         linha = {
-            "Modelo": f"🏆 {modelo}" if nome == vencedor else modelo,
-            "Erro geral (%)": numero(100 * c["erro_mj"], 1),
+            "Model": f"🏆 {modelo}" if nome == vencedor else modelo,
+            "Overall error (%)": numero(100 * c["erro_mj"], 1),
         }
         erros = c.get("erro_por_propulsao", {})
-        linha.update({f"{p} (%)": numero(100 * erros[p], 1) if p in erros else "—" for p in propulsoes})
-        linha["Monotonia"] = rotulos.get(c.get("monotonia"), "—")
-        linha["Tentativas"] = str(c.get("n_tentativas", "—"))
+        linha.update(
+            {
+                f"{nome_valor('propulsao', p)} (%)": numero(100 * erros[p], 1) if p in erros else "—"
+                for p in propulsoes
+            }
+        )
+        linha["Monotonicity"] = rotulos.get(c.get("monotonia"), "—")
+        linha["Trials"] = str(c.get("n_tentativas", "—"))
         linhas.append(linha)
     return pd.DataFrame(linhas)
 
 
-st.set_page_config(page_title="Comparação", layout="wide")
-st.title("Comparação dos candidatos")
+st.set_page_config(page_title="Comparison", layout="wide")
+st.title("Model comparison")
 
 # Lido a cada execução: um treino novo aparece após recarregar a página.
 pasta = Path(os.environ.get("EFICIENCIA_RELATORIOS") or RAIZ / "relatorios")
 arquivo = pasta / "metricas.json"
 if not arquivo.exists():
-    st.info("Nenhum treino encontrado. Rode: uv run eficiencia-treinar")
+    st.info("No training run found. Run: uv run eficiencia-treinar")
     st.stop()
 
 metricas = _carregar(arquivo)
@@ -98,37 +107,35 @@ fig = go.Figure(
         hovertemplate="%{y}: %{x:.1f} %<extra></extra>",
     )
 )
-fig.update_layout(
-    xaxis_title="Erro geral (%)", separators=",.", height=80 + 50 * len(ordem), margin={"t": 30}
-)
+fig.update_layout(xaxis_title="Overall error (%)", height=80 + 50 * len(ordem), margin={"t": 30})
 st.plotly_chart(fig)
 with st.container(border=True):
     if vencedor:
         st.success(
-            f"Vencedor: {NOMES.get(vencedor, vencedor)} — {numero(100 * candidatos[vencedor]['erro_mj'], 1)} % de erro médio no MJ/km"
+            f"Selected: {NOMES.get(vencedor, vencedor)}, {numero(100 * candidatos[vencedor]['erro_mj'], 1)} % mean error on MJ/km"
         )
     else:  # treino sem candidato aprovado: relatório e métricas existem, mas nenhum pacote foi salvo
-        st.warning("Nenhum modelo passou no teste de monotonia neste treino.")
-    st.subheader("Candidatos")
+        st.warning("No model passed the monotonicity check in this training run.")
+    st.subheader("Candidates")
     st.dataframe(_tabela(candidatos, vencedor), hide_index=True)
 st.caption(
-    "Os erros vêm de validação cruzada aninhada por grupo de modelo: cada veículo é previsto por um modelo "
-    "que não o viu no treino. O erro geral é o percentual médio no MJ/km combinado (urbano e estrada). "
-    "Só modelos aprovados no teste de monotonia podem vencer."
+    "Errors come from nested cross-validation grouped by model family: each vehicle is predicted by a model "
+    "that did not see it in training. The overall error is the mean percentage error on combined MJ/km "
+    "(city and highway). Only models that pass the monotonicity check can be selected."
 )
 
 for nome, c in candidatos.items():
     violacoes = c.get("violacoes", [])
     if c.get("monotonia") != "aprovado" and violacoes:
-        with st.expander(f"{NOMES.get(nome, nome)}: violações de monotonia"):
+        with st.expander(f"{NOMES.get(nome, nome)}: monotonicity violations"):
             st.text("\n".join(violacoes[:MAX_VIOLACOES]))
             if len(violacoes) > MAX_VIOLACOES:
-                st.write(f"e mais {len(violacoes) - MAX_VIOLACOES}")
+                st.write(f"and {len(violacoes) - MAX_VIOLACOES} more")
 
 figuras = [
     (pasta / "figuras" / arq, titulo) for arq, titulo in FIGURAS.items() if (pasta / "figuras" / arq).exists()
 ]
 if figuras:
-    st.subheader("Figuras")
+    st.subheader("Figures")
     for caminho, titulo in figuras:
         st.image(str(caminho), caption=titulo)

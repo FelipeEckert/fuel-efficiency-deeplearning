@@ -1,55 +1,127 @@
-# Eficiência energética de veículos
+# Vehicle energy efficiency estimator
 
-Estima o consumo energético de veículos a partir dos dados técnicos do PBEV 2026, com um modelo de aprendizado de máquina e um app Streamlit.
+[![CI](https://github.com/FelipeEckert/fuel-efficiency-deeplearning/actions/workflows/ci.yml/badge.svg)](https://github.com/FelipeEckert/fuel-efficiency-deeplearning/actions/workflows/ci.yml)
 
-## Como usar
+Predicts the label energy consumption of a light vehicle (MJ/km and km/l, on the Brazilian PBEV test cycle) from its technical specifications: mass, road-load coefficients, power, powertrain, transmission, battery and electric range. It is trained on the 2026 data of Brazil's vehicle labeling program (PBEV, run by Inmetro) and served through a Streamlit app.
+
+The project is also a controlled comparison between classic regression and deep learning on a small tabular dataset: five model families, the same grouped validation, the same hyperparameter budget and the same physical constraints.
+
+![Out-of-sample error by powertrain for each candidate](relatorios/figuras/erro_por_propulsao.png)
+
+## Results
+
+All errors are the mean absolute percentage error on combined MJ/km, measured out of sample with nested cross-validation grouped by model family, so versions of the same car never appear in both training and validation.
+
+| Model | Overall | Combustion | Electric | Hybrid | Plug-in |
+|---|---|---|---|---|---|
+| Linear regression (ridge) | 7.46 % | 5.93 % | 7.38 % | 7.42 % | 16.52 % |
+| Random forest | 6.55 % | 5.31 % | 4.64 % | 11.61 % | 11.46 % |
+| **XGBoost (selected)** | **5.71 %** | **4.71 %** | **4.57 %** | **7.20 %** | **12.07 %** |
+| Neural network, one per target | 6.77 % | 5.51 % | 5.54 % | 7.32 % | 16.02 % |
+| Neural network, multi-output | 6.95 % | 6.12 % | 5.71 % | 7.16 % | 14.21 % |
+
+- XGBoost wins with 5.71 % overall. Follow-up experiments with CatBoost and LightGBM landed within seed noise of it, which suggests about 5.7 % is the limit of this data with these inputs.
+- The neural networks do not beat the tree ensembles here. With 510 homologations, the data is too small for them to pull ahead.
+- Plug-in hybrids are the hardest group, with only about 50 homologations in the data.
+
+Model card (what it is for, measured coverage of the 90 % range, limits): [`relatorios/ficha_do_modelo.md`](relatorios/ficha_do_modelo.md). Full training report: [`relatorios/relatorio.md`](relatorios/relatorio.md). Optimization experiments (samplers, search space, seeds, network variants, other boosting libraries): [`relatorios/experimentos/conclusoes.md`](relatorios/experimentos/conclusoes.md).
+
+## How it works
+
+1. **Cleaning** (`eficiencia.dados`). The source spreadsheet has 844 vehicle versions with inconsistent units and formats: power in more than 200 notations, F2 in the wrong unit for some rows, battery capacity missing or wrong. The cleaner standardizes everything and collapses identical versions into 510 unique homologations, one row per test. Every rule is documented in [`data/README.md`](data/README.md).
+2. **Grouped nested validation** (`eficiencia.validacao`). Hyperparameters are tuned with Optuna in an inner loop, and the error is measured in an outer loop, both split by model family. Studies are stored in SQLite and resume where they stopped, so long searches can run overnight.
+3. **Physical constraints** (`eficiencia.monotonia`). More mass, inertia, F0 or F2 must never predict lower consumption. Every model is built with monotonic constraints, and a candidate is only eligible if a check on the trained model confirms it.
+4. **Uncertainty** (`eficiencia.incerteza`). Each prediction comes with a 90 % range from conformal quantiles of the out-of-fold errors relative to the prediction, per target and powertrain. Measured coverage is 90.5–92 % for MJ/km.
+5. **Coverage warnings** (`eficiencia.faixa`). The app flags inputs outside the ranges observed in the training data for that powertrain.
+6. **Explanations** (`eficiencia.explicar`). For the XGBoost model, the app breaks a prediction into the contribution of each input (TreeSHAP values from `pred_contribs`) and can draw the path of the vehicle through a tree.
+
+## The app
+
+![Vehicle page: estimate, uncertainty range and what-if controls](docs/app_vehicle.png)
+
+| Page | What it does |
+|---|---|
+| Vehicle | Estimate one vehicle, see the uncertainty range and the explanation, and compare "what if" scenarios (for example, 80 kg lighter). |
+| Portfolio | Estimate several vehicles at once and compute the sales-weighted average consumption. Tables can be edited in the app or uploaded and downloaded as files. |
+| Comparison | Compare the candidates from the latest training run: overall error, error by powertrain, monotonicity check and number of trials. |
+
+![Comparison page: candidates from the latest training run](docs/app_comparison.png)
+
+## Getting started
+
+Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-uv run eficiencia-limpar
 uv run streamlit run app/Inicio.py
 ```
 
-Treino e comparação dos candidatos (gera `modelos/vencedor/` e `relatorios/`):
+The trained XGBoost model is versioned in `modelos/vencedor/`, so the app works right after cloning.
+
+### Data
+
+The PBEV source spreadsheets are not part of this repository. To rebuild the clean table and retrain, place them in `data/raw/` (the expected file names and every cleaning rule are in [`data/README.md`](data/README.md)) and run:
 
 ```bash
-uv run eficiencia-treinar                    # 50 tentativas em cada estudo do Optuna
-uv run eficiencia-treinar --tentativas 200 --candidatos linear,xgboost   # vencedor e relatório só entre os listados
-uv run eficiencia-treinar --rapido           # modo rápido, só para desenvolvimento e CI: grava em modelos/rapido/
+uv run eficiencia-limpar      # writes data/processed/pbev_2026_limpo.csv
+uv run eficiencia-treinar     # trains every candidate, picks the winner, writes modelos/ and relatorios/
 ```
 
-A atualização anual da base são dois comandos: `uv run eficiencia-limpar` e `uv run eficiencia-treinar`.
-
-Os estudos do Optuna ficam em `optuna/estudos.db` e são retomados a cada execução. `--tentativas N` é o total de cada estudo: um treino interrompido completa só o que falta, e um estudo que já tem N tentativas não roda de novo. Para buscar mais, aumente N (por exemplo, de 50 para 100).
-
-### Treino noturno
-
-O treino roda em uma pasta separada, para que o desenvolvimento do app não mexa no modelo que está sendo treinado. Como a pasta principal já está com `main` aberto, o worktree usa uma branch própria:
+### Training options
 
 ```bash
-git fetch
+uv run eficiencia-treinar                    # 50 Optuna trials per study
+uv run eficiencia-treinar --tentativas 200 --candidatos linear,xgboost   # only the listed candidates
+uv run eficiencia-treinar --rapido           # fast mode for development and CI: writes to modelos/rapido/
+uv run eficiencia-progresso --tentativas 100 # trials done, best error and status per candidate
+uv run optuna-dashboard sqlite:///optuna/estudos.db   # study charts at http://localhost:8080
+```
+
+`--tentativas N` is the total per study: an interrupted run only completes what is missing, and a study that already has N trials does not run again. To search further, raise N.
+
+Long runs work best in a separate git worktree, so app development does not touch the model being trained:
+
+```bash
 git worktree add ../fuel_treino -b treino-noturno origin/main
-cd ../fuel_treino && uv sync
-uv run eficiencia-treinar --tentativas 50
+cd ../fuel_treino && uv sync && uv run eficiencia-treinar --tentativas 50
 ```
 
-- Nas noites seguintes, atualize o código com `git -C ../fuel_treino pull` e rode o treino de novo com um `--tentativas` maior (100, depois 150...). Cada estudo continua de onde parou até chegar ao novo total.
-- Impeça o Windows de suspender a máquina: Configurações → Sistema → Energia → Suspender: Nunca (na tomada).
-- Acompanhe o progresso com `uv run eficiencia-progresso --tentativas 100` (dentro de `../fuel_treino`, com o mesmo número passado ao treino). Ele mostra, para cada modelo, quantas tentativas já foram feitas, o melhor erro e se o modelo está em treino. O "melhor na busca" vem da validação interna e sai um pouco mais otimista que o erro do relatório.
-- Para ver os gráficos de cada estudo, use `uv run optuna-dashboard sqlite:///optuna/estudos.db` e abra http://localhost:8080.
+To point the app in the main folder at that model, set `EFICIENCIA_MODELO` and `EFICIENCIA_RELATORIOS` to the worktree's `modelos/vencedor` and `relatorios` folders before starting Streamlit.
 
-Para o app usar o modelo treinado, há duas opções:
+## Tests and CI
 
-- Rodar o app de dentro do worktree: `cd ../fuel_treino` e `uv run streamlit run app/Inicio.py`.
-- Apontar o app da pasta principal para o treino, no PowerShell, antes de `uv run streamlit run app/Inicio.py`:
+```bash
+uv run pytest -q
+uv run ruff check . && uv run ruff format --check .
+```
 
-  ```powershell
-  $env:EFICIENCIA_MODELO = "..\fuel_treino\modelos\vencedor"
-  $env:EFICIENCIA_RELATORIOS = "..\fuel_treino\relatorios"
-  ```
+170 tests cover the cleaning rules, the physics helpers, every model family, the monotonicity and uncertainty logic, prediction, explanations and the app pages (with Streamlit's `AppTest`). When the source data is not available, as in CI, the suite generates a synthetic table with the same schema ([`tests/dados_sinteticos.py`](tests/dados_sinteticos.py)), so everything except the spreadsheet-cleaning checks and a few golden-value checks on the real data runs on every push and pull request.
 
-Para publicar um modelo versionado, faça commit de `modelos/vencedor/` e `relatorios/` em um PR.
+## Project layout
 
-O app precisa de um modelo treinado (`uv run eficiencia-treinar`) antes que a página Veículo mostre resultados.
+```
+app/                  Streamlit app: home, vehicle, portfolio and comparison pages
+src/eficiencia/
+  dados.py            spreadsheet cleaning
+  esquema.py          model inputs, targets and categories
+  validacao.py        grouped nested cross-validation with Optuna
+  modelos/            linear, random forest, XGBoost, PyTorch networks (plus CatBoost and LightGBM for experiments)
+  monotonia.py        physical monotonicity check
+  incerteza.py        conformal uncertainty ranges
+  faixa.py            coverage warnings
+  explicar.py         per-input contributions
+  prever.py           prediction API used by the app
+  treino.py           training, model selection, artifacts and report
+  experimentos.py     optimization experiments
+modelos/vencedor/     versioned winning model
+relatorios/           training report, figures and experiment results
+tests/                pytest suite
+```
 
-Dados e formato do CSV limpo: [`data/README.md`](data/README.md). Especificação do projeto: [`docs/superpowers/specs/2026-11-03-eficiencia-energetica-design.md`](docs/superpowers/specs/2026-11-03-eficiencia-energetica-design.md).
+## Language
+
+The interface, reports and documentation are in English. Identifiers and code comments are in Portuguese, and the data keeps the original PBEV codes (for example, `Combustão` or `gasolina`), which the app shows with English names. Uploaded portfolio tables accept both the codes and the English names.
+
+## Stack
+
+Python 3.14, pandas, NumPy, scikit-learn, XGBoost, PyTorch, Optuna, CatBoost, LightGBM, Streamlit, Plotly, pytest, Ruff, uv and GitHub Actions.

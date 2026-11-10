@@ -1,4 +1,4 @@
-"""Validação e normalização das entradas: erros por linha em pt-BR, sem exceções nem números silenciosamente errados."""
+"""Input validation and normalization: one error message per problem and row, never an exception or a silently wrong number."""
 
 import math
 import unicodedata
@@ -6,7 +6,7 @@ import unicodedata
 import numpy as np
 import pandas as pd
 
-from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS, VALORES
+from eficiencia.esquema import CATEGORICAS, ENTRADAS, NOMES_VALORES, ROTULOS, VALORES, nome_valor
 from eficiencia.formato import numero
 
 LIMITES_FISICOS = {
@@ -31,7 +31,25 @@ def _chave(texto: str) -> str:
     return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode().casefold()
 
 
-_CANONICOS = {c: {_chave(v): v for v in VALORES[c]} for c in CATEGORICAS}
+# extra spellings accepted in uploaded tables, besides the PBEV codes and their English names
+SINONIMOS = {
+    "propulsao": {
+        "ice": "Combustão",
+        "ev": "Elétrico",
+        "bev": "Elétrico",
+        "hev": "Híbrido",
+        "phev": "Plug-in",
+    },
+    "combustivel": {"petrol": "gasolina", "electric": "eletrico", "flex": "flex"},
+    "transmissao": {"automatic": "automatica", "dual clutch": "dct", "direct": "direta"},
+}
+
+_CANONICOS = {
+    c: {_chave(v): v for v in VALORES[c]}
+    | {_chave(nome): v for v, nome in NOMES_VALORES.get(c, {}).items()}
+    | {_chave(apelido): v for apelido, v in SINONIMOS.get(c, {}).items()}
+    for c in CATEGORICAS
+}
 
 
 def _vazio(valor) -> bool:
@@ -56,24 +74,24 @@ def _campo(coluna: str, valor, obrigatorio: bool) -> tuple[object, str | None]:
     """Valor normalizado e o problema (sem o prefixo de linha), se houver."""
     if _vazio(valor):
         if obrigatorio:
-            return None, "obrigatório"
+            return None, "is required"
         return (None if coluna in CATEGORICAS else math.nan), None
     if coluna in CATEGORICAS:
         texto = str(valor).strip()
         canonico = _CANONICOS[coluna].get(_chave(texto))
-        return canonico, None if canonico is not None else f"inválido: {texto}"
+        return canonico, None if canonico is not None else f"is invalid: {texto}"
     x = _numero(valor)
     if x is None:
-        return math.nan, "não é número"
+        return math.nan, "is not a number"
     if coluna in LIMITES_FISICOS:
         minimo, maximo = LIMITES_FISICOS[coluna]
         if not minimo <= x <= maximo:
-            return x, f"fora do limite físico ({numero(minimo)} a {numero(maximo)})"
+            return x, f"is outside the physical limits ({numero(minimo)} to {numero(maximo)})"
     return x, None
 
 
 def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, list[str]]:
-    """Devolve as linhas válidas (normalizadas, índice original) e todas as mensagens de erro."""
+    """Valid rows (normalized, original index) and every error message."""
     erros: list[str] = []
     linhas: list[dict] = []
     indices: list = []
@@ -95,9 +113,9 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
                 problemas.append(f"{ROTULOS[coluna]} {problema}")
         prop, comb = limpo.get("propulsao"), limpo.get("combustivel")
         if prop == "Elétrico" and comb is not None and comb != "eletrico":
-            problemas.append("Combustível deve ser eletrico para propulsão Elétrico")
+            problemas.append("Fuel must be Electric for an electric powertrain")
         if comb == "eletrico" and prop is not None and prop != "Elétrico":
-            problemas.append("Propulsão deve ser Elétrico para combustível eletrico")
+            problemas.append("Powertrain must be Electric when the fuel is Electric")
         # mínimos por propulsão; valor ausente já virou "obrigatório" (NaN ou None, não float positivo)
         for campo, propulsoes in (
             ("cilindrada_cm3", ("Combustão", "Híbrido", "Plug-in")),
@@ -106,14 +124,16 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
         ):
             valor = limpo.get(campo)
             if prop in propulsoes and isinstance(valor, float) and not math.isnan(valor) and valor <= 0:
-                problemas.append(f"{ROTULOS[campo]} deve ser maior que zero para propulsão {prop}")
+                problemas.append(
+                    f"{ROTULOS[campo]} must be greater than zero for a {nome_valor('propulsao', prop)} powertrain"
+                )
         if prop == "Combustão":
             limpo["bateria_kwh"] = 0.0
         if prop == "Elétrico":
             limpo["cilindrada_cm3"] = 0.0
         if prop in ("Combustão", "Híbrido"):
             limpo["autonomia_eletrica_km"] = 0.0
-        erros += [f"linha {n}: {p}" for p in problemas]
+        erros += [f"row {n}: {p}" for p in problemas]
         if not problemas:
             linhas.append(limpo)
             indices.append(indice)

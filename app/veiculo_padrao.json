@@ -1,0 +1,18 @@
+{
+  "propulsao": "Combustão",
+  "combustivel": "flex",
+  "categoria": "SUVC",
+  "categoria_proconve": "PL",
+  "transmissao": "automatica",
+  "direcao": "eletrica",
+  "massa_om_kg": 1495.0,
+  "classe_inercia_kg": 1644.0,
+  "pbt_kg": 1920.0,
+  "f0_n": 154.69,
+  "f2_n_kmh2": 0.046165,
+  "potencia_kw": 129.4,
+  "cilindrada_cm3": 1608.0,
+  "n_marchas": 6.0,
+  "bateria_kwh": 0.0,
+  "autonomia_eletrica_km": 0.0
+}

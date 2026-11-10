@@ -1,222 +1,224 @@
-# Conclusões dos experimentos de otimização
+# Optimization experiments: conclusions
 
-Experimentos do plano [2026-11-05-investigacao-otimizacao.md](../../docs/superpowers/plans/2026-11-05-investigacao-otimizacao.md), rodados de 06/11 08:24 a 07/11 06:36 em `fuel_treino`. O teste de CatBoost e LightGBM veio depois, de 07/11 10:40 a 08/11 20:48. Os resultados brutos estão nos `.json` desta pasta.
+Seven hypotheses about where the remaining error comes from, tested after the first official training run. The raw results are in the `.json` files in this folder, and the code is in `src/eficiencia/experimentos.py` (`uv run eficiencia-experimento {samplers,cerca,sementes,redes,boosting}`).
 
-**Resumo:** nenhuma hipótese passou com folga no critério de 2 desvios-padrão.
-- O XGBoost publicado (5,77 %) continua sendo o modelo e não muda.
-- A busca já estava convergida, e os erros que ficaram parados vêm sobretudo do limite dos dados e do ruído das sementes.
-- CatBoost (5,72 %) e LightGBM (5,80 %) empataram com o XGBoost. Três algoritmos de boosting diferentes param no mesmo ponto, perto de 5,7 %. Esse parece ser o limite destes dados com estas entradas.
+**Summary:** no hypothesis cleared the two-standard-deviation bar.
+- The published XGBoost (5.77 %) stays as the model.
+- The search had already converged. The error that remains comes mostly from the limits of the data and from seed noise.
+- CatBoost (5.72 %) and LightGBM (5.80 %) tie with XGBoost. Three different boosting libraries stop at the same point, close to 5.7 %, which looks like the limit of this data with these inputs.
 
-Todos os erros são o erro percentual médio em MJ/km, na CV externa com 5 dobras por grupo.
+Every error is the mean absolute percentage error on MJ/km, in the outer loop of the grouped nested cross-validation with 5 folds.
 
-## Ruído (a régua de cada comparação)
+## Noise (the yardstick for every comparison)
 
-| Origem do ruído | Como foi medido | Desvio | 2 desvios |
+| Source of noise | How it was measured | Std. dev. | 2 std. dev. |
 |---|---|---|---|
-| Semente do modelo, XGBoost (H3) | parâmetros publicados fixos, 5 sementes | 0,11 ponto | **0,22 ponto** |
-| Semente da busca, XGBoost | TPE com 3 sementes do sampler, 50 tentativas | 0,035 ponto | **0,07 ponto** |
-| Semente do modelo, rede por alvo | parâmetros da rodada 3 fixos, 5 sementes, validação por linha | 0,25 ponto | **0,49 ponto** |
+| Model seed, XGBoost (H3) | published parameters fixed, 5 seeds | 0.11 pt | **0.22 pt** |
+| Search seed, XGBoost | TPE with 3 sampler seeds, 50 trials | 0.035 pt | **0.07 pt** |
+| Model seed, network per target | round 3 parameters fixed, 5 seeds, row-wise validation | 0.25 pt | **0.49 pt** |
 
-O desvio da busca saiu de só 3 sementes, então é uma estimativa frágil.
+The search deviation comes from only 3 seeds, so it is a fragile estimate.
 
-## H3: parte das diferenças é ruído de semente
+## H3: part of the differences is seed noise
 
-Os parâmetros publicados ficam fixos e só a semente do XGBoost muda.
+The published parameters stay fixed and only the XGBoost seed changes.
 
-| Semente | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+| Seed | MJ/km | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| 0 | 5,62 | 4,60 | 4,79 | 7,06 | 11,54 |
-| 1 | 5,72 | 4,73 | 4,70 | 7,51 | 11,33 |
-| 2 | 5,66 | 4,51 | 4,83 | 7,35 | 11,96 |
-| 3 | 5,50 | 4,40 | 4,77 | 7,39 | 11,01 |
-| 4 | 5,80 | 4,66 | 4,79 | 7,62 | 12,25 |
-| **média** | **5,66 ± 0,11** | | | | |
+| 0 | 5.62 | 4.60 | 4.79 | 7.06 | 11.54 |
+| 1 | 5.72 | 4.73 | 4.70 | 7.51 | 11.33 |
+| 2 | 5.66 | 4.51 | 4.83 | 7.35 | 11.96 |
+| 3 | 5.50 | 4.40 | 4.77 | 7.39 | 11.01 |
+| 4 | 5.80 | 4.66 | 4.79 | 7.62 | 12.25 |
+| **mean** | **5.66 ± 0.11** | | | | |
 
-**Veredito: confirmada.** Só a semente move o erro em 0,3 ponto (de 5,50 a 5,80 %). Diferenças menores que ~0,2 ponto entre configurações do XGBoost não querem dizer nada.
+**Verdict: confirmed.** The seed alone moves the error by 0.3 points (from 5.50 to 5.80 %). Differences below about 0.2 points between XGBoost configurations mean nothing.
 
-A média, 5,66 %, sai abaixo dos 5,77 % oficiais. A diferença acontece porque estes parâmetros foram escolhidos olhando a base inteira; o número oficial escolhe sem ver a dobra de teste.
+The mean, 5.66 %, is below the official 5.77 %. That is because these parameters were chosen while looking at the whole dataset, while the official number picks them without seeing the test fold.
 
-## H1: outro buscador acharia algo melhor que o TPE
+## H1: another sampler would beat TPE
 
-Mesma CV aninhada do XGBoost, com 50 tentativas por estudo.
+Same nested CV as the XGBoost run, with 50 trials per study.
 
-| Buscador | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+| Sampler | MJ/km | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| TPE (semente 0) | 5,77 | 4,66 | 4,91 | 7,60 | 11,77 |
-| TPE (semente 1) | 5,72 | 4,54 | 4,62 | 7,49 | 12,72 |
-| TPE (semente 2) | 5,71 | 4,70 | 4,49 | 7,57 | 11,81 |
-| **TPE, média** | **5,73 ± 0,035** | | | | |
-| QMC | 5,72 | 4,61 | 4,59 | 7,76 | 12,01 |
-| GP | 5,74 | 4,62 | 4,50 | 7,89 | 12,23 |
-| Aleatório | 5,84 | 4,81 | 4,38 | 8,31 | 11,89 |
-| CMA-ES | 5,88 | 4,82 | 5,09 | 7,46 | 11,70 |
+| TPE (seed 0) | 5.77 | 4.66 | 4.91 | 7.60 | 11.77 |
+| TPE (seed 1) | 5.72 | 4.54 | 4.62 | 7.49 | 12.72 |
+| TPE (seed 2) | 5.71 | 4.70 | 4.49 | 7.57 | 11.81 |
+| **TPE, mean** | **5.73 ± 0.035** | | | | |
+| QMC | 5.72 | 4.61 | 4.59 | 7.76 | 12.01 |
+| GP | 5.74 | 4.62 | 4.50 | 7.89 | 12.23 |
+| Random | 5.84 | 4.81 | 4.38 | 8.31 | 11.89 |
+| CMA-ES | 5.88 | 4.82 | 5.09 | 7.46 | 11.70 |
 
-**Veredito: rejeitada.** Os outros buscadores ficam assim em relação à média do TPE:
-- **QMC e GP** empatam, com diferenças de −0,01 e +0,01 ponto;
-- **Aleatório e CMA-ES** são piores, com +0,11 e +0,15 ponto.
+**Verdict: rejected.** Against the TPE mean:
+- **QMC and GP** tie, at −0.01 and +0.01 points;
+- **Random and CMA-ES** are worse, at +0.11 and +0.15 points.
 
-O TPE continua como buscador padrão, e o Simulated Annealing próprio não se justifica.
+TPE stays as the default sampler, and a custom simulated annealing sampler is not worth building.
 
-**Ressalva:** o H1 foi testado só no XGBoost, cuja busca já convergia cedo (entre a tentativa 19 e a 51). O resultado não diz nada sobre as redes, que ainda melhoravam no fim da busca.
+**Caveat:** H1 was only tested on XGBoost, whose search converged early (between trials 19 and 51). It says nothing about the networks, which were still improving at the end of their search.
 
-## H2: a faixa de busca (a "cerca") do XGBoost é estreita
+## H2: the XGBoost search space is too narrow
 
-CV aninhada com `xgboost_amplo`, 100 tentativas por estudo, comparada com o XGBoost oficial, que usou as mesmas 100 tentativas.
+Nested CV with `xgboost_amplo` (a wider search space), 100 trials per study, against the official XGBoost, which used the same 100 trials.
 
-| Modelo | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+| Model | MJ/km | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| XGBoost oficial (faixa atual) | 5,77 | 4,63 | 4,92 | 7,61 | 11,84 |
-| XGBoost faixa ampla | 5,69 | 4,65 | 4,69 | 7,00 | 12,20 |
+| Official XGBoost (current space) | 5.77 | 4.63 | 4.92 | 7.61 | 11.84 |
+| XGBoost, wide space | 5.69 | 4.65 | 4.69 | 7.00 | 12.20 |
 
-**Veredito: não confirmada, ganho no limite do ruído.** A faixa ampla melhora 0,08 ponto.
-- Pelo critério da busca (0,07 ponto), passa por 0,01 ponto. Mas esse desvio vem de só 3 sementes.
-- Não passa no critério da semente do modelo (0,22 ponto).
-- A melhor semente do TPE com a faixa atual já chega a 5,71 %, só 0,02 ponto acima.
+**Verdict: not confirmed, the gain is at the edge of the noise.** The wide space improves by 0.08 points.
+- Against the search noise (0.07 points) it passes by 0.01 points, but that deviation comes from only 3 seeds.
+- It does not pass the model seed bar (0.22 points).
+- The best TPE seed with the current space already reaches 5.71 %, only 0.02 points above.
 
-O Híbrido melhora 0,6 ponto, mas cada propulsão tem poucos carros, então o ruído ali é maior.
+Hybrids improve by 0.6 points, but each powertrain has few cars, so the noise there is larger.
 
-**Bordas da faixa ampla** (o parâmetro escolhido encostou no limite):
+**Edges of the wide space** (the chosen parameter hit a limit):
 
-| Dobra | Árvores | Profundidade | Parâmetro na borda |
+| Fold | Trees | Depth | Parameter at the edge |
 |---|---|---|---|
-| 1 | 908 | 6 | `reg_lambda` = 0,0013 (mínimo 0,001) |
-| 2 | 2520 | 3 | `min_child_weight` = 0 (mínimo) |
-| 3 | 2639 | 7 | nenhum |
-| 4 | 1595 | 7 | nenhum |
-| 5 | 2015 | 8 | nenhum |
+| 1 | 908 | 6 | `reg_lambda` = 0.0013 (minimum 0.001) |
+| 2 | 2520 | 3 | `min_child_weight` = 0 (minimum) |
+| 3 | 2639 | 7 | none |
+| 4 | 1595 | 7 | none |
+| 5 | 2015 | 8 | none |
 
-A busca usou a folga nova: profundidade até 8 e até 2.639 árvores, contra o limite antigo de 6 e 1.500. Mesmo assim, o erro quase não mudou. As dobras escolheram combinações bem diferentes e chegaram a erros parecidos. Isso indica um platô: o XGBoost já está perto do que estes dados permitem.
+The search used the new room: depth up to 8 and up to 2,639 trees, against the old limits of 6 and 1,500. Even so, the error barely moved. The folds picked very different combinations and reached similar errors, which points to a plateau: XGBoost is already close to what this data allows.
 
-O custo é que as árvores da faixa ampla são maiores, e as tentativas ficaram 2 a 3 vezes mais lentas.
+The cost is that the wide-space trees are larger, and trials became 2 to 3 times slower.
 
-## H4: as redes param na hora errada por causa dos "irmãos" na validação
+## H4: the networks stop at the wrong time because of "siblings" in validation
 
-Rede por alvo com os parâmetros da rodada 3. A validação da parada antecipada é feita de dois jeitos: por linha, como é hoje, ou por grupo, sem irmãos.
+Network per target with the round 3 parameters. The early-stopping validation is done two ways: by row, as today, or by group, with no siblings of the training cars.
 
-| Semente | Por linha | Por grupo |
+| Seed | By row | By group |
 |---|---|---|
-| 0 | 6,72 | 6,80 |
-| 1 | 6,71 | 6,57 |
-| 2 | 7,18 | 6,61 |
-| 3 | 6,87 | 6,75 |
-| 4 | 6,51 | 6,51 |
-| **média** | **6,80 ± 0,25** | **6,65 ± 0,12** |
+| 0 | 6.72 | 6.80 |
+| 1 | 6.71 | 6.57 |
+| 2 | 7.18 | 6.61 |
+| 3 | 6.87 | 6.75 |
+| 4 | 6.51 | 6.51 |
+| **mean** | **6.80 ± 0.25** | **6.65 ± 0.12** |
 
-Por propulsão, na média das 5 sementes:
+By powertrain, averaged over the 5 seeds:
 
-| Validação | Combustão | Elétrico | Híbrido | Plug-in |
+| Validation | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|
-| Por linha | 5,48 | 5,66 | 7,71 | 15,73 |
-| Por grupo | 5,32 | 5,61 | 7,77 | 15,17 |
+| By row | 5.48 | 5.66 | 7.71 | 15.73 |
+| By group | 5.32 | 5.61 | 7.77 | 15.17 |
 
-**Veredito: não confirmada.** A validação por grupo melhora 0,15 ponto, abaixo dos 0,49 do critério. Ela também deixa a rede mais estável: o desvio cai pela metade (0,12 contra 0,25), mas com só 5 sementes isso também é frágil.
+**Verdict: not confirmed.** Group validation improves by 0.15 points, below the 0.49 bar. It also makes the network more stable: the deviation halves (0.12 against 0.25), but with only 5 seeds that is fragile too.
 
-**Ressalva:** os parâmetros foram ajustados com a validação por linha. Um empate aqui não descarta a validação por grupo: com uma busca feita já com ela, o resultado pode ser outro.
+**Caveat:** the parameters were tuned with row-wise validation. A tie here does not rule out group validation: a search run with it from the start could end differently.
 
-**Curvas de perda** (dobra externa 1, alvo `mj_km_urbano`, semente 0):
+**Loss curves** (outer fold 1, target `mj_km_urbano`, seed 0):
 
-![Curvas de perda](curvas_perda.png)
+![Loss curves](curvas_perda.png)
 
-Nos dois modos, a validação acompanha o treino de perto, sem sinal de sobreajuste. Com validação por grupo, a parada vem mais cedo, por volta da época 42 contra a 95.
+In both modes the validation loss follows the training loss closely, with no sign of overfitting. With group validation, early stopping comes sooner, around epoch 42 against 95.
 
-## H5: a média de várias redes ajuda
+## H5: averaging several networks helps
 
-| Configuração | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+| Setup | MJ/km | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| 1 rede (média de 5 sementes, validação por linha) | 6,80 ± 0,25 | 5,48 | 5,66 | 7,71 | 15,73 |
-| média de 5 redes | 6,55 | 5,31 | 5,34 | 7,32 | 15,36 |
+| 1 network (mean of 5 seeds, row-wise validation) | 6.80 ± 0.25 | 5.48 | 5.66 | 7.71 | 15.73 |
+| average of 5 networks | 6.55 | 5.31 | 5.34 | 7.32 | 15.36 |
 
-**Veredito: não confirmada.** A média de 5 redes melhora 0,25 ponto, abaixo dos 0,49 do critério. A tendência vai na direção esperada, mas custa 5 vezes o tempo de treino.
+**Verdict: not confirmed.** Averaging 5 networks improves by 0.25 points, below the 0.49 bar. The trend goes the expected way, but it costs 5 times the training time.
 
-## H6: a taxa de aprendizado atrapalha
+## H6: the learning rate is holding the networks back
 
-Grade fixa de `lr` com a semente 0. O `lr` da rodada 3 é 0,00052, e com ele a rede ficou em 6,72 %.
+Fixed `lr` grid with seed 0. The round 3 `lr` is 0.00052, and with it the network reached 6.72 %.
 
-| `lr` | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+| `lr` | MJ/km | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| 0,0001 | 7,13 | 5,60 | 6,26 | 8,75 | 15,75 |
-| 0,0003 | 6,80 | 5,36 | 5,68 | 8,01 | 16,06 |
-| 0,001 | 6,68 | 5,35 | 5,83 | 7,38 | 15,32 |
-| 0,003 | 6,82 | 5,67 | 5,72 | 8,13 | 14,24 |
-| 0,01 | 8,04 | 6,01 | 6,72 | 8,97 | 21,39 |
+| 0.0001 | 7.13 | 5.60 | 6.26 | 8.75 | 15.75 |
+| 0.0003 | 6.80 | 5.36 | 5.68 | 8.01 | 16.06 |
+| 0.001 | 6.68 | 5.35 | 5.83 | 7.38 | 15.32 |
+| 0.003 | 6.82 | 5.67 | 5.72 | 8.13 | 14.24 |
+| 0.01 | 8.04 | 6.01 | 6.72 | 8.97 | 21.39 |
 
-**Veredito: rejeitada.** Entre 0,0003 e 0,003 o erro fica num platô (6,68 a 6,82 %), e o `lr` escolhido está no meio dele. Só os extremos pioram, sobretudo 0,01 (+1,3 ponto).
+**Verdict: rejected.** Between 0.0003 and 0.003 the error sits on a plateau (6.68 to 6.82 %), and the chosen `lr` is in the middle of it. Only the extremes get worse, mainly 0.01 (+1.3 points).
 
-## H7: outro algoritmo de boosting passa o XGBoost
+## H7: another boosting library beats XGBoost
 
-CatBoost e LightGBM na mesma CV aninhada do XGBoost oficial, com 100 tentativas por estudo. Os dois usam a mesma monotonia do XGBoost: o consumo só pode subir com a massa, o F0, o F2 etc. Ficam fora do treino oficial (`EXPERIMENTAIS`).
+CatBoost and LightGBM in the same nested CV as the official XGBoost, with 100 trials per study. Both use the same monotonic constraints as XGBoost: consumption can only rise with mass, F0, F2 and so on. They stay out of the official training (`EXPERIMENTAIS`).
 
-| Modelo | MJ/km | Combustão | Elétrico | Híbrido | Plug-in |
+| Model | MJ/km | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| XGBoost oficial | 5,77 | 4,63 | 4,92 | 7,61 | 11,84 |
-| CatBoost | 5,72 | 4,54 | 5,13 | 7,23 | 11,87 |
-| LightGBM | 5,80 | 4,57 | 4,84 | 7,07 | 13,38 |
+| Official XGBoost | 5.77 | 4.63 | 4.92 | 7.61 | 11.84 |
+| CatBoost | 5.72 | 4.54 | 5.13 | 7.23 | 11.87 |
+| LightGBM | 5.80 | 4.57 | 4.84 | 7.07 | 13.38 |
 
-**Veredito: não confirmada.** Contra o XGBoost oficial, o CatBoost melhora 0,05 ponto e o LightGBM piora 0,03. Os dois ficam dentro do ruído da busca (0,07 ponto) e do ruído da semente do modelo (0,22 ponto).
-- O CatBoost também fica junto da média das 3 sementes do TPE com o XGBoost (5,73 %) e da faixa ampla (5,69 %).
-- O LightGBM erra mais no Plug-in (13,4 % contra 11,8 %), mas o Plug-in tem só 50 carros, então esse número é o mais ruidoso da tabela.
+**Verdict: not confirmed.** Against the official XGBoost, CatBoost improves by 0.05 points and LightGBM gets worse by 0.03. Both stay inside the search noise (0.07 points) and the model seed noise (0.22 points).
+- CatBoost also sits next to the mean of the 3 TPE seeds with XGBoost (5.73 %) and the wide space (5.69 %).
+- LightGBM errs more on plug-ins (13.4 % against 11.8 %), but there are only 50 plug-ins, so that is the noisiest number in the table.
 
-**O que as buscas escolheram:**
-- **CatBoost:** árvores rasas, com profundidade 4 a 6 e 490 a 1.900 iterações.
-- **LightGBM:** de 15 a 63 folhas, de 950 a 1.930 árvores, e taxa de aprendizado baixa (0,012 a 0,034).
+**What the searches chose:**
+- **CatBoost:** shallow trees, depth 4 to 6, with 490 to 1,900 iterations.
+- **LightGBM:** 15 to 63 leaves, 950 to 1,930 trees and a low learning rate (0.012 to 0.034).
 
-As dobras chegaram a combinações bem diferentes com erros parecidos, o mesmo platô visto no H2.
+The folds reached very different combinations with similar errors, the same plateau seen in H2.
 
-**Bordas** (parâmetro a menos de 5 % do limite da faixa):
+**Edges** (parameter within 5 % of the search limit):
 
-| Dobra | CatBoost | LightGBM |
+| Fold | CatBoost | LightGBM |
 |---|---|---|
-| 1 | nenhuma | `reg_lambda` = 0,001 (mínimo 0,001) |
-| 2 | nenhuma | `num_leaves` = 63 (máximo 64) |
-| 3 | nenhuma | `n_estimators` = 1.930 (máximo 2.000), `min_child_samples` = 2 (mínimo) |
-| 4 | `random_strength` = 9,7 (máximo 10) | nenhuma |
-| 5 | `iterations` = 1.916 (máximo 2.000), `learning_rate` = 0,28 (máximo 0,3) | `min_child_samples` = 3 (mínimo 2) |
+| 1 | none | `reg_lambda` = 0.001 (minimum 0.001) |
+| 2 | none | `num_leaves` = 63 (maximum 64) |
+| 3 | none | `n_estimators` = 1,930 (maximum 2,000), `min_child_samples` = 2 (minimum) |
+| 4 | `random_strength` = 9.7 (maximum 10) | none |
+| 5 | `iterations` = 1,916 (maximum 2,000), `learning_rate` = 0.28 (maximum 0.3) | `min_child_samples` = 3 (minimum 2) |
 
-- **CatBoost:** nenhum parâmetro encosta no limite em mais de uma dobra.
-- **LightGBM:** o `min_child_samples` (o mínimo de carros por folha) fica no piso em duas dobras. Ele pede folhas menores do que a faixa permite.
+- **CatBoost:** no parameter hits a limit in more than one fold.
+- **LightGBM:** `min_child_samples` (the minimum number of cars per leaf) sits at the floor in two folds. It wants smaller leaves than the space allows.
 
-Alargar essa faixa pode render alguma coisa. Mas o XGBoost com faixa ampla (H2) ganhou só 0,08 ponto, então o esperado é um ganho pequeno.
+Widening that range might help a little. But the wide-space XGBoost (H2) gained only 0.08 points, so the expected gain is small.
 
-**Monotonia:** os 10 conjuntos de parâmetros (5 dobras × 2 modelos), treinados na base inteira, passaram em `checar_monotonia` sem nenhuma violação.
+**Monotonicity:** all 10 parameter sets (5 folds × 2 models), trained on the whole dataset, passed `checar_monotonia` with no violations.
 
-**Custo:** com 500 tentativas cada, o CatBoost levou 15h25 e o LightGBM 18h40. A 5ª dobra do CatBoost sozinha levou 11h, porque a busca passou muito tempo em árvores fundas (profundidade 6–7) com quase 2.000 iterações.
+**Cost:** with 500 trials each, CatBoost took 15h25 and LightGBM 18h40. CatBoost's 5th fold alone took 11 hours, because the search spent a long time on deep trees (depth 6 to 7) with close to 2,000 iterations.
 
-## O que fica para depois
+## Next steps
 
-Cada item seria um plano e um PR próprios. Nada muda no modelo publicado por causa destes experimentos.
+Each item would be its own plan and pull request. Nothing in the published model changes because of these experiments.
 
-1. **O XGBoost fica.** Trocar de algoritmo não paga: o CatBoost empata, é mais lento e traria uma dependência nova para o app.
-2. **O próximo ganho tem que vir dos dados, não do modelo.** Com três algoritmos de boosting parando em ~5,7 %, mexer na busca ou no algoritmo dá retorno baixo. As opções são mais carros, entradas novas ou a comparação com EPA/WLTP. O pior caso é o Plug-in (~12 %), e é aí que um dado melhor pesaria mais.
-3. **Opcional, não testado: a média de XGBoost e CatBoost.** Os erros dos dois por propulsão não são iguais, então a média pode ganhar um pouco. Mas pelo H5 o esperado é um ganho pequeno, abaixo do ruído.
-4. **Opcional: repetir a faixa ampla com 3 sementes de busca** (~8 h), para fechar o H2. Os 0,08 ponto de agora não pagam as árvores maiores e o treino mais lento.
-5. **Redes, baixa prioridade:** juntar a validação por grupo e a média de 5 redes numa nova busca (`VERSAO = 3`). As duas tendências são boas, mas a rede está cerca de 1 ponto atrás do XGBoost, e nem somando os dois ganhos ela chegaria lá.
-6. **Sem mudança:** o TPE continua como buscador, e a faixa de `lr` das redes continua a mesma.
+1. **XGBoost stays.** Switching libraries does not pay: CatBoost ties, is slower and would add a new dependency to the app.
+2. **The next gain has to come from the data, not the model.** With three boosting libraries stopping at about 5.7 %, more search or another algorithm brings little. The options are more vehicles, new inputs, or a comparison with EPA or WLTP data. The worst case is plug-ins (about 12 %), and that is where better data would matter most.
+3. **Optional, untested: averaging XGBoost and CatBoost.** Their errors by powertrain are not the same, so the average might gain a little. But going by H5, the expected gain is small and below the noise.
+4. **Optional: repeat the wide space with 3 search seeds** (about 8 hours) to close H2. The current 0.08 points do not justify larger trees and slower training.
+5. **Networks, low priority:** combine group validation and the 5-network average in a new search. Both trends are good, but the network is about 1 point behind XGBoost, and even both gains together would not close that gap.
+6. **No change:** TPE stays as the sampler, and the networks' `lr` range stays the same.
 
-## Execução
+## Runtime
 
-- **Ordem:** os 4 experimentos rodaram em sequência, via WMI.
-- **Estrangulamento:** entre 12h e 16h de 06/11, o carregador mal encaixado fez o processador rodar a 33 % da velocidade. Isso só atrasou o `cerca` e não afeta os resultados.
-- **Tempo de cada experimento:**
-  - `sementes`: 4 min;
-  - `redes`: 3h40;
-  - `cerca`: 9h20;
+- The four first experiments ran in sequence, unattended, on a Windows desktop.
+- Between 12:00 and 16:00 on Nov 6, a loose charger throttled the CPU to 33 % of its speed. That only delayed `cerca` and does not affect the results.
+- Time per experiment:
+  - `sementes` (seeds): 4 min;
+  - `redes` (networks): 3h40;
+  - `cerca` (search space): 9h20;
   - `samplers`: 9h10;
-  - `boosting`: 34h10, rodado depois, também via WMI.
+  - `boosting`: 34h10, run later.
 
-## H8 — entradas novas (2026-11-09)
+## H8: new inputs (2026-11-09)
 
-Sondas com `cv_fixa` do XGBoost, com os hiperparâmetros publicados fixos e as sementes de dobra 0, 1 e 2. A comparação é pareada: cada variante roda nas mesmas dobras que a base.
+Probes with XGBoost `cv_fixa`, the published hyperparameters held fixed, and fold seeds 0, 1 and 2. The comparison is paired: each variant runs on the same folds as the baseline.
 
-| Variante | Erro MJ/km (média de 3) | Por semente | Plug-in por semente |
+| Variant | MJ/km error (mean of 3) | Per seed | Plug-in per seed |
 |---|---|---|---|
-| Base | 5,83 % | 5,62 / 5,96 / 5,90 | 11,54 / 14,74 / 14,57 |
-| + autonomia elétrica | 5,67 % | 5,56 / 5,76 / 5,68 | 11,58 / 13,67 / 12,82 |
-| − bateria_estimada | 5,76 % | 5,56 / 5,90 / 5,82 | 11,66 / 14,41 / 14,25 |
-| + energia de tração no ciclo (FTP-75 e HWFET da EPA, só a parte positiva) | 5,80 % | 5,69 / 5,84 / 5,88 | 12,16 / 14,44 / 14,65 |
+| Baseline | 5.83 % | 5.62 / 5.96 / 5.90 | 11.54 / 14.74 / 14.57 |
+| + electric range | 5.67 % | 5.56 / 5.76 / 5.68 | 11.58 / 13.67 / 12.82 |
+| − bateria_estimada | 5.76 % | 5.56 / 5.90 / 5.82 | 11.66 / 14.41 / 14.25 |
+| + cycle tractive energy (EPA FTP-75 and HWFET, positive part only) | 5.80 % | 5.69 / 5.84 / 5.88 | 12.16 / 14.44 / 14.65 |
 
-**Veredito:** a autonomia entra e a `bateria_estimada` sai. Ambas melhoram em todas as sementes: a autonomia em −0,16 ponto na média, e a remoção da bateria em −0,07 ponto.
-- A energia de tração no ciclo fica de fora. Ela melhora 0,03 ponto na média, dentro do ruído, e no seed 0 piora.
+**Verdict:** electric range goes in and `bateria_estimada` comes out. Both improve on every seed: −0.16 points on average for the range, −0.07 for dropping the battery flag.
+- Cycle tractive energy stays out. It improves the mean by 0.03 points, within the noise, and is worse on seed 0.
 
-**Fonte dos ciclos:** `https://www.epa.gov/sites/default/files/2015-10/ftpcol.txt` e `hwycol.txt`.
+**Cycle source:** `https://www.epa.gov/sites/default/files/2015-10/ftpcol.txt` and `hwycol.txt`.
 
-**Ressalva:** a autonomia é medida no ensaio. No uso, o que está disponível é a autonomia de projeto.
+**Caveat:** the range is the one measured in the homologation test. In use, what is available up front is the design range.
+
+**Full retrain (2026-11-10):** the 5 candidates with 100 trials per fold. XGBoost wins again with 5.71 % (was 5.77 %); the plug-in error stayed about the same (11.84 % → 12.07 %), so the probe gain on plug-ins did not survive the full nested search.

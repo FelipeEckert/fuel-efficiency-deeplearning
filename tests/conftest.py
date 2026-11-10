@@ -1,10 +1,24 @@
 import os
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from eficiencia.artefatos import carregar
+from eficiencia.esquema import caminho_base
 from eficiencia.treino import treinar
+
+BASE_REAL = caminho_base().exists()
+
+
+def pytest_configure(config):
+    """Without the local PBEV table (it is not versioned), the suite runs on a synthetic one."""
+    if not BASE_REAL:
+        from dados_sinteticos import salvar
+
+        pasta = Path(tempfile.mkdtemp(prefix="eficiencia-sintetico-"))
+        os.environ["EFICIENCIA_BASE"] = str(salvar(pasta / "base_sintetica.csv"))
 
 
 @pytest.fixture(scope="session")

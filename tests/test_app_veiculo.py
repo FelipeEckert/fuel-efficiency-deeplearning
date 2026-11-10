@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 
-from eficiencia.esquema import ENTRADAS, ROTULOS, carregar_base
+from eficiencia.esquema import ENTRADAS, ROTULOS, carregar_base, nome_valor
 from eficiencia.explicar import explicavel
 from eficiencia.fisica import classe_inercia
 from eficiencia.prever import prever
@@ -34,13 +34,13 @@ def test_pagina_veiculo_calcula(pacote_rapido):
 
 def test_explicacao_sem_erro_nos_dois_ciclos(pacote_rapido):
     at = _pagina()
-    assert any(s.value == "Por que este valor?" for s in at.subheader)
+    assert any(s.value == "Why this value?" for s in at.subheader)
     radios = [r for r in at.radio if r.key == "shap_ciclo"]  # sem radio quando o vencedor não é XGBoost
     assert bool(radios) == explicavel(pacote_rapido.modelo)
     if radios:
         radios[0].set_value("estrada").run()
         rotulos = json.loads(at.get("plotly_chart")[1].proto.spec)["data"][0]["y"]
-        assert "Tipo de propulsão" in rotulos and "Demais entradas" in rotulos
+        assert "Powertrain type" in rotulos and "Other inputs" in rotulos
         assert ROTULOS["bateria_kwh"] not in rotulos
     assert not at.exception
 
@@ -87,7 +87,7 @@ def test_e_se_massa_muda_resultado_e_classe(pacote_rapido):
     at = _pagina()
     base = at.session_state["veiculo_massa_om_kg"]
     at.slider(key="es_massa").set_value(-20).run()
-    delta = _metrica(at, "MJ/km com as mudanças").delta
+    delta = _metrica(at, "MJ/km with the changes").delta
     assert delta.startswith("-")  # consumo menor: seta para baixo
     at.button(key="salvar_cenario").click().run()
     salvo = at.session_state["cenarios"][0]["veiculo"]
@@ -101,11 +101,11 @@ def test_dois_cenarios_base_e_diferenca(pacote_rapido):
     at.slider(key="es_massa").set_value(10).run()
     at.button(key="salvar_cenario").click().run()
     nomes = [c["nome"] for c in at.session_state["cenarios"]]
-    assert nomes == ["Cenário 1", "Cenário 2"]
+    assert nomes == ["Scenario 1", "Scenario 2"]
     mj = [c["resultado"]["mj_km"] for c in at.session_state["cenarios"]]
     assert mj[1] > mj[0]
     grafico = at.get("plotly_chart")[-1].proto.spec  # o último: o primeiro pode ser o da explicação
-    assert "base" in grafico and "%)" in grafico  # rótulos de diferença (spec JSON escapa "/")
+    assert "baseline" in grafico and "%)" in grafico  # rótulos de diferença (spec JSON escapa "/")
 
 
 def test_remover_cenario(pacote_rapido):
@@ -144,31 +144,32 @@ def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()
     at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()
     at.number_input(key="veiculo_bateria_kwh").set_value(0.0).run()
-    assert any("Bateria" in e.value for e in at.error)
+    assert any("Battery" in e.value for e in at.error)
 
 
 def test_faixa_mostra_so_o_intervalo(pacote_rapido):
     at = _pagina()
-    faixas = [c.value for c in at.caption if c.value.startswith("faixa de 90 %")]
+    faixas = [c.value for c in at.caption if c.value.startswith("90 % range")]
     assert len(faixas) >= 4
-    assert all(re.fullmatch(r"faixa de 90 %: \d+,\d{2} – \d+,\d{2}", f) for f in faixas[:3])  # MJ/km
-    assert all(re.fullmatch(r"faixa de 90 %: \d+,\d – \d+,\d", f) for f in faixas[3:])  # km/l
+    assert all(re.fullmatch(r"90 % range: \d+\.\d{2} – \d+\.\d{2}", f) for f in faixas[:3])  # MJ/km
+    assert all(re.fullmatch(r"90 % range: \d+\.\d – \d+\.\d", f) for f in faixas[3:])  # km/l
 
 
 def test_e_se_sem_variacao_nao_mostra_seta(pacote_rapido):
     at = _pagina()
-    assert not _metrica(at, "MJ/km com as mudanças").delta
+    assert not _metrica(at, "MJ/km with the changes").delta
     # -20 %: o modelo de teste (XGBoost rápido) é uma função em degraus; uma variação pequena
     # pode cair no mesmo degrau e não mudar a previsão (foi o que aconteceu com +5 % no CI Linux)
     at.slider(key="es_massa").set_value(-20).run()
-    assert _metrica(at, "MJ/km com as mudanças").delta
+    assert _metrica(at, "MJ/km with the changes").delta
 
 
 def test_rotulos_legiveis_nos_selects(pacote_rapido):
     at = _pagina()
-    assert "Dupla embreagem (DCT)" in at.selectbox(key="veiculo_transmissao").options
-    assert "Eletro-hidráulica" in at.selectbox(key="veiculo_direcao").options
-    assert "Elétrico" in at.selectbox(key="veiculo_combustivel").options
+    assert "Dual clutch (DCT)" in at.selectbox(key="veiculo_transmissao").options
+    assert "Electro-hydraulic" in at.selectbox(key="veiculo_direcao").options
+    assert "Electric" in at.selectbox(key="veiculo_combustivel").options
+    assert "Plug-in hybrid" in at.selectbox(key="veiculo_propulsao").options
     at.selectbox(key="veiculo_transmissao").set_value("dct").run()
     assert at.session_state["veiculo_transmissao"] == "dct"
 
@@ -204,7 +205,7 @@ def test_preset_e_voltar_ao_original(pacote_rapido):
         -10,
         -10,
     )
-    assert _metrica(at, "MJ/km com as mudanças").delta  # mudou em relação ao original
+    assert _metrica(at, "MJ/km with the changes").delta  # mudou em relação ao original
     at.button(key="zerar_simulador").click().run()
     assert at.session_state["es_massa"] == at.session_state["es_f0"] == at.session_state["es_f2"] == 0
 
@@ -212,8 +213,8 @@ def test_preset_e_voltar_ao_original(pacote_rapido):
 def test_modelo_por_dentro_e_medidor(pacote_rapido):
     at = _pagina()
     assert not at.exception
-    assert [t.label for t in at.tabs][-2:] == ["Árvore do XGBoost", "Rede neural"]
-    assert any("ilustrativo" in c.value for c in at.caption)
+    assert [t.label for t in at.tabs][-2:] == ["XGBoost tree", "Neural network"]
+    assert any("Illustrative" in c.value for c in at.caption)
     assert "indicator" in at.get("plotly_chart")[0].proto.spec  # o medidor vem antes da explicação
 
 
@@ -228,7 +229,7 @@ def test_eletrico_roda_simulador(pacote_rapido):
 def test_resumo_da_ficha(pacote_rapido):
     at = _pagina()
     resumo = at.caption[0].value
-    assert at.session_state["veiculo_propulsao"] in resumo and " kg" in resumo
+    assert nome_valor("propulsao", at.session_state["veiculo_propulsao"]) in resumo and " kg" in resumo
 
 
 def test_salvar_com_ajuste_invalido_guarda_o_original(pacote_rapido):

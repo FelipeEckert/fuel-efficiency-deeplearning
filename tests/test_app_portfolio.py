@@ -42,12 +42,12 @@ def test_pagina_portfolio_vazia_e_com_dados(pacote_rapido):
 
 def test_media_ponderada_aparece_formatada(pacote_rapido):
     at = _pagina(_tabela([("Carro A", 100, 1.5), ("Carro B", 300, 2.0)]))
-    assert "1,88" in _metrica(at, "MJ/km médio do portfólio").value
+    assert "1.88" in _metrica(at, "Portfolio average MJ/km").value
 
 
 def test_volume_zero_mostra_erro_da_linha(pacote_rapido):
     at = _pagina(_tabela([("Carro A", 0, 1.5)]))
-    assert any("linha 1" in erro.value for erro in at.error)
+    assert any("row 1" in erro.value for erro in at.error)
 
 
 def test_adicionar_veiculo_pelo_formulario(pacote_rapido):
@@ -66,7 +66,7 @@ def test_edicao_sobrevive_a_trocar_de_pagina(pacote_rapido):
     at.session_state["portfolio_atual"] = _tabela([("Carro A", 100, 1.5), ("Carro B", 300, 2.0)])
     del at.session_state["editor_0"]  # o widget some quando o usuário sai da página
     at.run()
-    assert "1,88" in _metrica(at, "MJ/km médio do portfólio").value
+    assert "1.88" in _metrica(at, "Portfolio average MJ/km").value
     assert len(at.session_state["portfolio_atual"]) == 2
 
 
@@ -75,7 +75,7 @@ def test_valor_fora_das_opcoes_e_reportado(pacote_rapido):
     df.loc[0, "categoria"] = "XYZ"
     at = _pagina(df)
     assert not at.exception
-    assert any("linha 1" in erro.value for erro in at.error)
+    assert any("row 1" in erro.value for erro in at.error)
 
 
 def test_sem_modelo_calcula_so_linhas_conhecidas(pacote_rapido, monkeypatch):
@@ -88,12 +88,12 @@ def test_sem_modelo_calcula_so_linhas_conhecidas(pacote_rapido, monkeypatch):
     df = _tabela([("A", 100, 1.5), ("B", 300, np.nan), ("C", 200, 2.0), ("D", 100, np.nan), ("E", 0, 1.0)])
     at = _pagina(df)
     assert not at.exception
-    assert any("Sem modelo" in i.value for i in at.info)
-    assert _metrica(at, "MJ/km médio do portfólio").value == "1,83 MJ/km"
+    assert any("No trained model" in i.value for i in at.info)
+    assert _metrica(at, "Portfolio average MJ/km").value == "1.83 MJ/km"
     erros = [e.value for e in at.error]
-    assert any(e.startswith("linha 2:") for e in erros)
-    assert any(e.startswith("linha 4:") for e in erros)
-    assert any(e.startswith("linha 5:") for e in erros)  # volume zero, número da linha na tabela inteira
+    assert any(e.startswith("row 2:") for e in erros)
+    assert any(e.startswith("row 4:") for e in erros)
+    assert any(e.startswith("row 5:") for e in erros)  # volume zero, número da linha na tabela inteira
 
 
 def test_sem_modelo_sem_linhas_conhecidas_nao_quebra(pacote_rapido, monkeypatch):
@@ -105,18 +105,18 @@ def test_sem_modelo_sem_linhas_conhecidas_nao_quebra(pacote_rapido, monkeypatch)
     monkeypatch.setattr(formulario, "modelo", sem_modelo)
     at = _pagina(_tabela([("B", 300, np.nan)]))
     assert not at.exception
-    assert _metrica(at, "MJ/km médio do portfólio").value == "—"
-    assert any(e.value.startswith("linha 1:") for e in at.error)
+    assert _metrica(at, "Portfolio average MJ/km").value == "—"
+    assert any(e.value.startswith("row 1:") for e in at.error)
     at = _pagina()
     assert not at.exception
 
 
 def test_caption_de_inclusao_e_linha_sem_nome(pacote_rapido):
     at = _pagina(_tabela([("A", 100, 1.5), ("B", 300, 0)]))
-    assert any(c.value == "1 de 2 veículos incluídos (25 % do volume)" for c in at.caption)
+    assert any(c.value == "1 of 2 vehicles included (25 % of the volume)" for c in at.caption)
     at = _pagina(_tabela([(None, 100, 1.5), ("B", 300, 2.0)]))
-    por_veiculo = next(d.value for d in at.dataframe if "Nome" in d.value.columns)
-    assert list(por_veiculo["Nome"]) == ["linha 1", "B"]
+    por_veiculo = next(d.value for d in at.dataframe if "Name" in d.value.columns)
+    assert list(por_veiculo["Name"]) == ["row 1", "B"]
 
 
 def test_grafico_por_propulsao(pacote_rapido):
@@ -137,4 +137,4 @@ def test_faixa_de_90_aparece_com_estimados(pacote_rapido):
             **v.to_dict(),
         }
     at = _pagina(df)
-    assert any("faixa de 90 %" in c.value for c in at.caption)
+    assert any("90 % range" in c.value for c in at.caption)

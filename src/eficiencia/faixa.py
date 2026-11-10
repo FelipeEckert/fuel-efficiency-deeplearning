@@ -1,10 +1,10 @@
-"""Faixas observadas na base por propulsão e avisos para valores fora delas."""
+"""Ranges observed in the data per powertrain, and warnings for inputs outside them."""
 
 from collections.abc import Mapping
 
 import pandas as pd
 
-from eficiencia.esquema import CATEGORICAS, NUMERICAS, ROTULOS
+from eficiencia.esquema import CATEGORICAS, NUMERICAS, ROTULOS, nome_valor
 from eficiencia.formato import numero
 
 
@@ -30,16 +30,19 @@ def avisos(veiculo: Mapping, faixas: dict) -> list[str]:
         if valor is None or pd.isna(valor):
             continue
         rotulo = ROTULOS[coluna]
+        grupo = nome_valor("propulsao", propulsao).lower()
         if coluna in numericas:
             minimo, maximo = numericas[coluna]
             if valor < minimo:
                 mensagens.append(
-                    f"{rotulo} = {numero(valor)} abaixo de qualquer {propulsao} da base (mínimo {numero(minimo)})"
+                    f"{rotulo} = {numero(valor)} is below every {grupo} vehicle in the data (minimum {numero(minimo)})"
                 )
             elif valor > maximo:
                 mensagens.append(
-                    f"{rotulo} = {numero(valor)} acima de qualquer {propulsao} da base (máximo {numero(maximo)})"
+                    f"{rotulo} = {numero(valor)} is above every {grupo} vehicle in the data (maximum {numero(maximo)})"
                 )
         elif coluna in categoricas and coluna != "propulsao" and valor not in categoricas[coluna]:
-            mensagens.append(f"{rotulo} = {valor} nunca vista em {propulsao} na base")
+            mensagens.append(
+                f"{rotulo} = {nome_valor(coluna, valor)} was never seen in {grupo} vehicles in the data"
+            )
     return mensagens

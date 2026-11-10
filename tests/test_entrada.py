@@ -13,7 +13,7 @@ def veiculo(**kw):  # A3 Sedan da base como ponto de partida
 def test_validar_texto_e_virgula():
     df = pd.DataFrame([veiculo(f2_n_kmh2="0,035", massa_om_kg="abc", categoria=" g ")])
     ok, erros = validar(df)
-    assert erros == ["linha 1: Massa em ordem de marcha (kg) não é número"] and ok.empty
+    assert erros == ["row 1: Curb mass (kg) is not a number"] and ok.empty
 
 
 def test_validar_normaliza_categoria_sem_acento_e_caixa():
@@ -25,12 +25,12 @@ def test_validar_normaliza_categoria_sem_acento_e_caixa():
 
 def test_limites_fisicos():
     _, erros = validar(pd.DataFrame([veiculo(f2_n_kmh2=-0.01, potencia_kw=0)]))
-    assert len(erros) == 2 and all(e.startswith("linha 1: ") for e in erros)
+    assert len(erros) == 2 and all(e.startswith("row 1: ") for e in erros)
 
 
 def test_coerencia_propulsao():
     _, erros = validar(pd.DataFrame([veiculo(propulsao="Elétrico", combustivel="gasolina")]))
-    assert any("Combustível" in e for e in erros)
+    assert any(e.startswith("row 1: Fuel must be Electric") for e in erros)
     ok, _ = validar(pd.DataFrame([veiculo(propulsao="Combustão", bateria_kwh=60)]))
     assert ok.iloc[0]["bateria_kwh"] == 0
 
@@ -54,24 +54,24 @@ def test_eletrico_dispensa_cilindrada():
 
 def test_booleano_nao_e_numero():
     _, erros = validar(pd.DataFrame([veiculo(potencia_kw=True)]))
-    assert erros == ["linha 1: Potência (kW) não é número"]
+    assert erros == ["row 1: Power (kW) is not a number"]
 
 
 def test_minimos_por_propulsao():
     _, erros = validar(pd.DataFrame([veiculo(propulsao="Combustão", cilindrada_cm3=0)]))
-    assert erros == ["linha 1: Cilindrada (cm³) deve ser maior que zero para propulsão Combustão"]
+    assert erros == ["row 1: Displacement (cm³) must be greater than zero for a Combustion powertrain"]
     _, erros = validar(
         pd.DataFrame(
             [veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=0, autonomia_eletrica_km=50)]
         )
     )
-    assert erros == ["linha 1: Bateria (kWh) deve ser maior que zero para propulsão Plug-in"]
+    assert erros == ["row 1: Battery (kWh) must be greater than zero for a Plug-in hybrid powertrain"]
     _, erros = validar(
         pd.DataFrame(
             [veiculo(propulsao="Plug-in", combustivel="flex", bateria_kwh=10, autonomia_eletrica_km=0)]
         )
     )
-    assert erros == ["linha 1: Autonomia elétrica (km) deve ser maior que zero para propulsão Plug-in"]
+    assert erros == ["row 1: Electric range (km) must be greater than zero for a Plug-in hybrid powertrain"]
 
 
 def test_autonomia_eletrica_obrigatoria_em_recarregaveis():
@@ -79,7 +79,7 @@ def test_autonomia_eletrica_obrigatoria_em_recarregaveis():
         _, erros = validar(
             pd.DataFrame([veiculo(propulsao=prop, combustivel=comb, autonomia_eletrica_km=None)])
         )
-        assert "linha 1: Autonomia elétrica (km) obrigatório" in erros
+        assert "row 1: Electric range (km) is required" in erros
 
 
 def test_autonomia_eletrica_zera_sem_recarga_e_tem_limite():
@@ -91,4 +91,4 @@ def test_autonomia_eletrica_zera_sem_recarga_e_tem_limite():
     _, erros = validar(
         pd.DataFrame([veiculo(propulsao="Plug-in", combustivel="flex", autonomia_eletrica_km=2500)])
     )
-    assert any("Autonomia elétrica (km) fora do limite físico" in e for e in erros)
+    assert any("Electric range (km) is outside the physical limits" in e for e in erros)
