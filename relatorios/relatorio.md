@@ -1,29 +1,29 @@
 # Relatório de treino: eficiência energética
 
-Data: 2026-11-05 · hash da base: `dd888117`
+Data: 2026-11-10 · hash da base: `ad3d96d0`
 
 **Vencedor: xgboost**, o de menor erro entre os que passam no teste de monotonia.
-Hiperparâmetros: `{'n_estimators': 969, 'max_depth': 5, 'learning_rate': 0.032637691707401356, 'subsample': 0.6437132638022895, 'colsample_bytree': 0.5795595752000016, 'min_child_weight': 5, 'reg_lambda': 0.002883631811041725}`
+Hiperparâmetros: `{'n_estimators': 1178, 'max_depth': 5, 'learning_rate': 0.03492377029556782, 'subsample': 0.6420182922473265, 'colsample_bytree': 0.6093514545082879, 'min_child_weight': 2, 'reg_lambda': 0.015516427527411565}`
 
 ## Candidatos
 
 | Candidato | Erro MJ/km | Monotonia | Tentativas |
 |---|---|---|---|
-| linear | 7,52 % | aprovado | 900 |
-| floresta | 7,02 % | aprovado | 674 |
-| xgboost | 5,77 % | aprovado | 600 |
-| rede_por_alvo | 7,16 % | aprovado | 301 |
-| rede_multi | 7,72 % | aprovado | 300 |
+| linear | 7,46 % | aprovado | 600 |
+| floresta | 6,55 % | aprovado | 600 |
+| xgboost | 5,71 % | aprovado | 600 |
+| rede_por_alvo | 6,77 % | aprovado | 600 |
+| rede_multi | 6,95 % | aprovado | 600 |
 
 ## Erro por propulsão (MJ/km)
 
 | Candidato | Combustão | Elétrico | Híbrido | Plug-in |
 |---|---|---|---|---|
-| linear | 6,04 % | 7,39 % | 7,31 % | 16,57 % |
-| floresta | 5,36 % | 4,8 % | 11,47 % | 15,83 % |
-| xgboost | 4,63 % | 4,92 % | 7,61 % | 11,84 % |
-| rede_por_alvo | 5,81 % | 5,55 % | 8,68 % | 16,59 % |
-| rede_multi | 6,12 % | 6,71 % | 9 % | 17,53 % |
+| linear | 5,93 % | 7,38 % | 7,42 % | 16,52 % |
+| floresta | 5,31 % | 4,64 % | 11,61 % | 11,46 % |
+| xgboost | 4,71 % | 4,57 % | 7,2 % | 12,07 % |
+| rede_por_alvo | 5,51 % | 5,54 % | 7,32 % | 16,02 % |
+| rede_multi | 6,12 % | 5,71 % | 7,16 % | 14,21 % |
 
 ## Figuras
 
