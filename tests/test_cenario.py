@@ -38,7 +38,8 @@ def test_varredura_f2_monotona_e_sem_saltos_maiores(pacote_rapido, veiculos):
             suave.append(fator_suave(m, v, alt))
             bruto.append(_bruto(m, alt) / _bruto(m, v))
         assert np.all(np.diff(suave) >= -1e-12)
-        assert np.diff(suave).max() <= np.diff(bruto).max() + 1e-12
+        # sem saltos maiores que os do modelo; 1 % de folga porque a média de ±5 % desloca de leve uma curva já suave
+        assert np.diff(suave).max() <= np.diff(bruto).max() * 1.01 + 1e-12
 
 
 def test_escalar_saidas_mantem_kml_vezes_mj(pacote_rapido, veiculos):

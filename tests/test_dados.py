@@ -78,6 +78,7 @@ def test_grupo_cv():
     assert grupo_cv("CHEVROLET", "ONIX PLUS") != grupo_cv("CHEVROLET", "ONIX")
 
 
+@precisa_planilha
 def test_autonomia_eletrica(limpo):
     df, _ = limpo
     sem_bateria = df["propulsao"].isin(["Combustão", "Híbrido"])
