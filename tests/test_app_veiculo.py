@@ -49,6 +49,8 @@ def test_plug_in_com_autonomia_calcula_e_soma_na_propulsao(pacote_rapido):
     at = _pagina()
     at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
     assert at.session_state["veiculo_autonomia_eletrica_km"] > 0  # mediana dos Plug-in da base
+    assert at.session_state["veiculo_bateria_kwh"] > 0  # idem: trocar de propulsão já calcula, sem erro
+    assert not at.error and any("MJ/km" in m.label for m in at.metric)
     at.number_input(key="veiculo_bateria_kwh").set_value(12.0).run()
     assert not at.exception and any("MJ/km" in m.label for m in at.metric)
     if explicavel(pacote_rapido.modelo):
@@ -140,7 +142,8 @@ def test_exportar_excel(pacote_rapido):
 
 def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()
-    at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()  # bateria padrão é 0
+    at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()
+    at.number_input(key="veiculo_bateria_kwh").set_value(0.0).run()
     assert any("Bateria" in e.value for e in at.error)
 
 

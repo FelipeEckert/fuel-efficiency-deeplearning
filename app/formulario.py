@@ -82,11 +82,15 @@ def _ao_mudar_massa(chave: str) -> None:
 
 def _ao_mudar_propulsao(chave: str) -> None:
     propulsao = st.session_state[f"{chave}_propulsao"]
-    if propulsao in ("Plug-in", "Elétrico"):
-        autonomia = carregar_base().query("propulsao == @propulsao")["autonomia_eletrica_km"]  # faixa típica
-        atual = st.session_state[f"{chave}_autonomia_eletrica_km"]
-        if atual == 0 or not autonomia.min() <= atual <= autonomia.max():
-            st.session_state[f"{chave}_autonomia_eletrica_km"] = float(autonomia.median())
+    base = carregar_base().query("propulsao == @propulsao")
+    for campo, exigem in (
+        ("bateria_kwh", ("Híbrido", "Plug-in", "Elétrico")),
+        ("autonomia_eletrica_km", ("Plug-in", "Elétrico")),
+    ):
+        tipica = base[campo]  # faixa típica da propulsão; zerado ou fora dela vira a mediana
+        atual = st.session_state[f"{chave}_{campo}"]
+        if propulsao in exigem and (atual == 0 or not tipica.min() <= atual <= tipica.max()):
+            st.session_state[f"{chave}_{campo}"] = float(tipica.median())
     if st.session_state[f"{chave}_propulsao"] == "Elétrico":
         st.session_state[f"{chave}_combustivel"] = "eletrico"
         st.session_state[f"{chave}_transmissao"] = "direta"
