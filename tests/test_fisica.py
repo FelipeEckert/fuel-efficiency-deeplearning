@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pytest
 
 from eficiencia.esquema import CAMINHO_BASE, carregar_base
@@ -6,7 +8,9 @@ from eficiencia.fisica import (
     combinar_kml,
     combinar_mj,
     combustiveis_aplicaveis,
+    fator_utilidade,
     fatores_kml,
+    fracao_combustao,
     kml_eletrico_eq,
 )
 
@@ -46,3 +50,22 @@ def test_fatores_kml():
 )
 def test_combustiveis_aplicaveis(prop, comb, esperado):
     assert combustiveis_aplicaveis(prop, comb) == esperado
+
+
+def test_fator_utilidade_wltp():
+    assert fator_utilidade(0.0) == 0.0
+    assert np.isclose(fator_utilidade(40.0), 0.689, atol=1e-3)
+    assert np.isclose(fator_utilidade(100.0), 0.902, atol=1e-3)
+    d = np.arange(0, 801, 1.0)
+    assert (np.diff(fator_utilidade(pd.Series(d))) >= 0).all()  # nunca cai com mais autonomia
+    assert fator_utilidade(2000.0) == fator_utilidade(800.0)  # acima de dn não estoura
+
+
+def test_fracao_combustao_por_propulsao():
+    prop = pd.Series(["Combustão", "Híbrido", "Plug-in", "Elétrico", "Plug-in"])
+    aut = pd.Series([0.0, 0.0, 40.0, 300.0, np.nan])
+    f = fracao_combustao(prop, aut)
+    assert f.iloc[:2].tolist() == [1.0, 1.0]
+    assert np.isclose(f.iloc[2], 1 - 0.689, atol=1e-3)
+    assert f.iloc[3] == 0.0
+    assert np.isnan(f.iloc[4])
