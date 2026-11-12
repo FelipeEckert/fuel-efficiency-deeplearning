@@ -86,6 +86,7 @@ FEATURES = [
     "autonomia_eletrica_km",
 ]
 CV_PARA_KW = 0.7355
+HIBRIDO_NO_NOME = re.compile(r"\b(?:HYBRID|HIBRIDO|HEV)\b")  # palavra inteira: não casa MHEVX nem THEVENIN
 
 
 def ler_aba(caminho, aba=ABA):
@@ -210,6 +211,11 @@ def limpar(caminho=ENTRADA):
     df["modelo"] = txt("modelo")
     df["versao"] = txt("versao")
     df["propulsao"] = txt("propulsao").map(padronizar_propulsao)
+    # RAV4 S/SX HYBRID e similares foram digitados como combustão: o nome manda
+    nome_completo = (txt("modelo") + " " + txt("versao") + " " + txt("nome_homologado")).map(sem_acento)
+    corrigir = df["propulsao"].eq("Combustão") & nome_completo.str.upper().str.contains(HIBRIDO_NO_NOME)
+    df.loc[corrigir, "propulsao"] = "Híbrido"
+    n_corrigidos = int(corrigir.sum())
     df["combustivel"] = txt("combustivel").map({"G": "gasolina", "F": "flex", "D": "diesel", "E": "eletrico"})
     df["direcao"] = txt("direcao").map(
         {"E": "eletrica", "Elétrica": "eletrica", "H": "hidraulica", "E-H": "eletro-hidraulica"}
@@ -284,6 +290,7 @@ def limpar(caminho=ENTRADA):
     relatorio = {
         "linhas lidas": n_bruto,
         "F2 convertido de N/(m/s)² para N/(km/h)²": int(f2_corrigido.sum()),
+        "Combustão com híbrido no nome -> Híbrido": n_corrigidos,
         "removidas por falta de F0/F2/massa/MJ_km": int(sem_essencial.sum()),
         "bateria preenchida pelo complemento (versões)": n_complemento,
         "bateria estimada (homologações)": int(limpo["bateria_estimada"].sum()),
@@ -343,6 +350,10 @@ def checar(df):
     assert (df.loc[df["propulsao"].eq("Elétrico"), "bateria_kwh"] > 10).all()
     assert (df.loc[df["propulsao"].ne("Combustão"), "bateria_kwh"] > 0).all()
     assert df["lcvm"].dropna().str.fullmatch(LCVM_VALIDO).all()
+    nome = df["nome_homologado"].fillna("").map(sem_acento).str.upper()
+    assert not (df["propulsao"].eq("Combustão") & nome.str.contains(HIBRIDO_NO_NOME)).any(), (
+        "combustão com híbrido no nome"
+    )
     tecnico = [c for c in FEATURES + ALVOS if c != "marca"]
     assert not df[tecnico].round(4).map(str).duplicated().any(), "homologação repetida"
     assert np.allclose(df["mj_km"], 0.55 * df["mj_km_urbano"] + 0.45 * df["mj_km_estrada"], atol=1e-6)
