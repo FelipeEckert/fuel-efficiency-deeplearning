@@ -1,4 +1,4 @@
-"""Experimentos de otimização dos modelos (XGBoost, outros boostings e redes). Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes,boosting,entradas}
+"""Experimentos de otimização dos modelos (XGBoost, outros boostings e redes). Uso: uv run eficiencia-experimento {samplers,cerca,sementes,redes,boosting}
 
 Nunca gravam em optuna/estudos.db: só leem de lá os parâmetros finais do treino oficial.
 """
@@ -13,8 +13,6 @@ import optuna
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-from eficiencia import preprocess
-from eficiencia.artefatos import carregar
 from eficiencia.dados import RAIZ
 from eficiencia.esquema import ALVOS, ENTRADAS, carregar_base
 from eficiencia.modelos import CANDIDATOS
@@ -165,29 +163,6 @@ def experimento_sementes(params: dict, n: int = 5, rapido: bool = False) -> dict
     return resultado
 
 
-def experimento_entradas(params: dict, sementes=(0, 1, 2), rapido: bool = False) -> dict:
-    """Sonda pareada: mesmas dobras e sementes, com e sem a fração a combustão como entrada."""
-    df = carregar_base()
-    if rapido:
-        params = params | CANDIDATOS["xgboost"].PARAMS_RAPIDOS
-    n_externas = _dobras(rapido)["n_externas"]
-    resultado = {"hash_csv": hash8(df), "params": params, "variantes": {}}
-    original = preprocess.DERIVADAS
-    try:
-        for nome, derivadas in {"base": [], "fracao_combustao": ["fracao_combustao"]}.items():
-            preprocess.DERIVADAS = derivadas
-            por_semente = [
-                _resumo(cv_fixa("xgboost", df, params, n_externas=n_externas, semente_dobras=s))
-                for s in sementes
-            ]
-            media = float(np.mean([x["erro_mj"] for x in por_semente]))
-            resultado["variantes"][nome] = {"media": media, "por_semente": por_semente}
-    finally:
-        preprocess.DERIVADAS = original
-    _gravar(f"entradas-{resultado['hash_csv']}", resultado, rapido)
-    return resultado
-
-
 def _estatisticas(resumos: list[dict]) -> dict:
     erros = [x["erro_mj"] for x in resumos]
     return {"media": float(np.mean(erros)), "desvio": float(np.std(erros, ddof=1)) if len(erros) > 1 else 0.0}
@@ -250,20 +225,13 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Model optimization experiments (XGBoost, other boosting libraries and networks)."
     )
-    parser.add_argument(
-        "experimento", choices=["samplers", "cerca", "sementes", "redes", "boosting", "entradas"]
-    )
+    parser.add_argument("experimento", choices=["samplers", "cerca", "sementes", "redes", "boosting"])
     parser.add_argument(
         "--tentativas", type=int, help="Optuna trials (default: 50 for samplers, 100 for cerca and boosting)"
     )
     parser.add_argument("--rapido", action="store_true", help="2 folds, fast parameters, no database")
     args = parser.parse_args(argv)
-    if args.experimento == "entradas":
-        params = {} if args.rapido else carregar().metadados["params"]
-        resultado = experimento_entradas(
-            params, sementes=(0, 1) if args.rapido else (0, 1, 2), rapido=args.rapido
-        )
-    elif args.experimento in ("sementes", "redes"):
+    if args.experimento in ("sementes", "redes"):
         nome = "xgboost" if args.experimento == "sementes" else "rede_por_alvo"
         params = {} if args.rapido else melhores_params(nome)
         f = experimento_sementes if args.experimento == "sementes" else experimento_redes
