@@ -3,7 +3,7 @@ import json
 import optuna
 import pytest
 
-from eficiencia import experimentos, treino
+from eficiencia import experimentos, preprocess, treino
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.modelos.xgb import FAIXAS_AMPLO
 
@@ -40,6 +40,16 @@ def test_sementes_rapido(tmp_path, monkeypatch):
     p = CANDIDATOS["xgboost"].PARAMS_RAPIDOS | {"subsample": 0.7}
     r = experimentos.experimento_sementes(p, n=2, rapido=True)
     assert r["desvio"] >= 0 and len(r["por_semente"]) == 2
+
+
+def test_entradas_rapido(tmp_path, monkeypatch):
+    monkeypatch.setattr(experimentos, "PASTA_EXPERIMENTOS", tmp_path)
+    r = experimentos.experimento_entradas({}, sementes=(0, 1), rapido=True)
+    assert set(r["variantes"]) == {"base", "fracao_combustao"}
+    assert all(len(v["por_semente"]) == 2 for v in r["variantes"].values())
+    assert "hash_csv" in r
+    assert (tmp_path / "rapido" / f"entradas-{r['hash_csv']}.json").exists()
+    assert preprocess.DERIVADAS == ["fracao_combustao"]
 
 
 def test_boosting_rapido(tmp_path, monkeypatch):
