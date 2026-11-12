@@ -3,7 +3,8 @@
 import numpy as np
 import pandas as pd
 
-from eficiencia.esquema import CATEGORICAS, NUMERICAS
+from eficiencia.esquema import CATEGORICAS, DERIVADAS, NUMERICAS
+from eficiencia.fisica import fracao_combustao
 
 
 class Preprocessador:
@@ -18,12 +19,14 @@ class Preprocessador:
         N = X[NUMERICAS].astype(float)
         # vazio em CVT/DHT significa "sem marcha fixa"
         N["n_marchas"] = N["n_marchas"].fillna(0)
+        if "fracao_combustao" in DERIVADAS:
+            N["fracao_combustao"] = fracao_combustao(X["propulsao"], X["autonomia_eletrica_km"])
         return N
 
     def fit(self, X: pd.DataFrame) -> Preprocessador:
         self._categorias = {c: sorted(X[c].dropna().unique()) for c in CATEGORICAS}
-        self.nomes = [f"{c}={v}" for c in CATEGORICAS for v in self._categorias[c]] + list(NUMERICAS)
         N = self._numericas(X)
+        self.nomes = [f"{c}={v}" for c in CATEGORICAS for v in self._categorias[c]] + list(N.columns)
         self._media = N.mean()
         # coluna constante ganha desvio 1 para não dividir por zero
         self._desvio = N.std().replace(0, 1.0)
@@ -32,6 +35,8 @@ class Preprocessador:
     def transform(self, X: pd.DataFrame) -> np.ndarray:
         onehot = [X[c].to_numpy() == v for c in CATEGORICAS for v in self._categorias[c]]
         # NaN nas numéricas (poucas linhas) vira 0 após padronizar, ou seja, a média do fit
-        Z = ((self._numericas(X) - self._media) / self._desvio).fillna(0.0)
+        # só as colunas vistas no fit: um pacote salvo antes de uma derivada nova mantém a largura
+        N = self._numericas(X)[self._media.index]
+        Z = ((N - self._media) / self._desvio).fillna(0.0)
         blocos = [np.column_stack(onehot).astype(np.float32), Z.to_numpy(np.float32)]
         return np.hstack(blocos)

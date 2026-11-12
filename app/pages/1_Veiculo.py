@@ -98,7 +98,7 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
     )  # zeroes what does not apply, like prever
     base, contribuicoes = explicar(pacote.modelo, normalizado, f"mj_km_{ciclo}")
     # entrar como eletrificado espalha o efeito por entradas que o validar zera; junta numa linha só
-    junta = ["propulsao", "combustivel", "bateria_kwh", "autonomia_eletrica_km"]
+    junta = ["propulsao", "combustivel", "bateria_kwh", "autonomia_eletrica_km", "fracao_combustao"]
     if normalizado["cilindrada_cm3"] == 0:
         junta.append("cilindrada_cm3")
     rotulos = ROTULOS | {"propulsao_grupo": "Powertrain type", "demais": "Other inputs"}
@@ -111,7 +111,7 @@ def _explicacao(pacote, veiculo: dict) -> tuple[str, dict] | None:
         f"Average vehicle in the data: {_fixo(math.exp(base), 2)} MJ/km × effects = "
         f"{_fixo(math.exp(base + contribuicoes.sum()), 2)} MJ/km. Each bar is how much the input "
         "raises (+) or lowers (−) consumption compared with it; the effects multiply. "
-        '"Powertrain type" groups powertrain, fuel, battery and electric range (and the zero displacement of electric cars).'
+        '"Powertrain type" groups powertrain, fuel, battery, electric range and share of distance on fuel (and the zero displacement of electric cars).'
     )
     fig = go.Figure(
         go.Bar(

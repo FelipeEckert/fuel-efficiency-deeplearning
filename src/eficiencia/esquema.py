@@ -23,6 +23,7 @@ NUMERICAS = [
     "autonomia_eletrica_km",
 ]
 ENTRADAS = CATEGORICAS + NUMERICAS
+DERIVADAS = ["fracao_combustao"]  # calculadas a partir de outras entradas, em preprocess
 ALVOS = [
     "mj_km_urbano",
     "mj_km_estrada",
@@ -31,7 +32,7 @@ ALVOS = [
     "kml_etanol_urbano",
     "kml_etanol_estrada",
 ]
-MONOTONAS = ["massa_om_kg", "classe_inercia_kg", "f0_n", "f2_n_kmh2"]
+MONOTONAS = ["massa_om_kg", "classe_inercia_kg", "f0_n", "f2_n_kmh2", "fracao_combustao"]
 
 VALORES: dict[str, list[str]] = {
     "propulsao": ["Combustão", "Elétrico", "Híbrido", "Plug-in"],
@@ -76,6 +77,7 @@ ROTULOS: dict[str, str] = {
     "n_marchas": "Number of gears",
     "bateria_kwh": "Battery (kWh)",
     "autonomia_eletrica_km": "Electric range (km)",
+    "fracao_combustao": "Share of distance on fuel",
     "mj_km_urbano": "MJ/km city",
     "mj_km_estrada": "MJ/km highway",
     "kml_gasolina_urbano": "km/l gasoline city",
