@@ -350,7 +350,7 @@ def checar(df):
     assert (df.loc[df["propulsao"].eq("Elétrico"), "bateria_kwh"] > 10).all()
     assert (df.loc[df["propulsao"].ne("Combustão"), "bateria_kwh"] > 0).all()
     assert df["lcvm"].dropna().str.fullmatch(LCVM_VALIDO).all()
-    nome = df["nome_homologado"].fillna("").map(sem_acento).str.upper()
+    nome = (df["nome_homologado"].fillna("") + " " + df["versoes"].fillna("")).map(sem_acento).str.upper()
     assert not (df["propulsao"].eq("Combustão") & nome.str.contains(HIBRIDO_NO_NOME)).any(), (
         "combustão com híbrido no nome"
     )

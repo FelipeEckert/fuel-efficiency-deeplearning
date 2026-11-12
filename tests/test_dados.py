@@ -48,6 +48,12 @@ def test_contagens(limpo):
     assert df["grupo_cv"].nunique() == 258
     assert rel["F2 convertido de N/(m/s)² para N/(km/h)²"] == 10
     assert int(df["bateria_estimada"].sum()) == 19
+    assert df["propulsao"].value_counts().to_dict() == {
+        "Combustão": 286,
+        "Híbrido": 65,
+        "Plug-in": 50,
+        "Elétrico": 109,
+    }
 
 
 @pytest.mark.parametrize(
