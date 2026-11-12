@@ -1,9 +1,7 @@
-"""Conversões físicas: classe de inércia (NBR 6601), mistura urbano/estrada, equivalente elétrico e
-fator de utilidade WLTP com fração a combustão."""
+"""Conversões físicas: classe de inércia (NBR 6601), mistura urbano/estrada e equivalente elétrico."""
 
 from bisect import bisect_right
 
-import numpy as np
 import pandas as pd
 
 # (mínimo da faixa em kg, classe de inércia) — spec §8.1
@@ -43,9 +41,6 @@ _FAIXAS_NBR_6601 = [
 _MINIMOS = [m for m, _ in _FAIXAS_NBR_6601]
 MASSA_ENSAIO_EXTRA_KG = 136
 FATOR_ELETRICO = 20.29
-# Reg. (UE) 2017/1151, fator de utilidade de frota: UF(d) = 1 − exp(−Σ aᵢ·(d/dn)ⁱ), dn = 800 km
-_COEF_UF_WLTP = [26.25, -38.94, -631.05, 5964.83, -25095, 60380.2, -87517, 75513.8, -35749, 7154.94]
-_DN_WLTP_KM = 800
 
 
 def classe_inercia(massa_om_kg: float) -> float:
@@ -76,22 +71,6 @@ def fatores_kml(df: pd.DataFrame) -> dict[str, tuple[float, float]]:
 
 def kml_diesel(mj_km, fator: float):
     return fator / mj_km
-
-
-def fator_utilidade(autonomia_km):
-    """Fração da distância percorrida em modo elétrico (WLTP); aceita float ou pd.Series."""
-    x = np.clip(autonomia_km, 0, _DN_WLTP_KM) / _DN_WLTP_KM
-    return 1 - np.exp(-sum(a * x**i for i, a in enumerate(_COEF_UF_WLTP, start=1)))
-
-
-def fracao_combustao(propulsao: pd.Series, autonomia_km: pd.Series) -> pd.Series:
-    """Fração da distância a combustão: 1 em Combustão e Híbrido, 0 em Elétrico, 1 − UF no Plug-in."""
-    fracao = np.select(
-        [propulsao.isin(["Combustão", "Híbrido"]), propulsao.eq("Plug-in"), propulsao.eq("Elétrico")],
-        [1.0, 1 - fator_utilidade(autonomia_km), 0.0],
-        default=np.nan,
-    )
-    return pd.Series(fracao, index=propulsao.index)
 
 
 def combustiveis_aplicaveis(propulsao: str, combustivel: str) -> set[str]:
