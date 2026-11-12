@@ -68,11 +68,6 @@ def test_pergunta_legivel():
     assert pergunta(no) == "Electric range (km) < 42?"
 
 
-def test_pergunta_fracao_combustao():
-    no = {"coluna": "fracao_combustao", "categoria": None, "limite": 0.31}
-    assert pergunta(no) == "Share of distance on fuel < 0.31?"
-
-
 def test_html_arvore_anima_so_o_caminho():
     h = html_arvore(NOS)
     assert h.count('class="part"') == 2  # duas arestas no caminho

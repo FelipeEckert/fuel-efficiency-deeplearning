@@ -18,8 +18,7 @@ def checar_monotonia(
     rng = np.random.default_rng(semente)
     base = df[ENTRADAS].iloc[rng.choice(len(df), size=min(n_veiculos, len(df)), replace=False)]
     mensagens: list[str] = []
-    # a derivada não entra aqui: não dá para multiplicá-la na base
-    for coluna in [c for c in MONOTONAS if c in ENTRADAS]:
+    for coluna in MONOTONAS:
         previsoes = []
         for fator in fatores:
             X = base.copy()

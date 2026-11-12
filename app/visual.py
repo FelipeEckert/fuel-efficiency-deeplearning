@@ -24,7 +24,6 @@ _CASAS = {
     "f0_n": 1,
     "bateria_kwh": 1,
     "f2_n_kmh2": 4,
-    "fracao_combustao": 2,
 }  # as demais colunas numéricas (kg, kW, cm³...) usam 0 casas
 
 # Keyframes e classes do protótipo V6. Só transform/opacity; o .part sai do HTML como class="part".

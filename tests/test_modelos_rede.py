@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import eficiencia.preprocess
 from eficiencia.esquema import ALVOS, CAMINHO_BASE, ENTRADAS, carregar_base
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.monotonia import checar_monotonia
@@ -77,9 +76,7 @@ PADRAO = {
 
 @base_real
 @pytest.mark.parametrize("nome", ["rede_por_alvo", "rede_multi"])
-def test_padroes_mantem_previsoes(nome, monkeypatch):
-    # os valores fixos foram medidos sem as entradas derivadas
-    monkeypatch.setattr(eficiencia.preprocess, "DERIVADAS", [])
+def test_padroes_mantem_previsoes(nome):
     df = carregar_base()
     p = CANDIDATOS[nome](semente=1, max_epocas=5).fit(df[ENTRADAS], df[ALVOS]).predict(df[ENTRADAS])
     np.testing.assert_allclose(p.iloc[:3].values, PADRAO[nome], rtol=1e-6)
