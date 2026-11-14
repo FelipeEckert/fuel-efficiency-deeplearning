@@ -222,3 +222,30 @@ Probes with XGBoost `cv_fixa`, the published hyperparameters held fixed, and fol
 **Caveat:** the range is the one measured in the homologation test. In use, what is available up front is the design range.
 
 **Full retrain (2026-11-10):** the 5 candidates with 100 trials per fold. XGBoost wins again with 5.71 % (was 5.77 %); the plug-in error stayed about the same (11.84 % → 12.07 %), so the probe gain on plug-ins did not survive the full nested search.
+
+## H9: label fix and share of distance on fuel (2026-11-12)
+
+The same paired probe as H8: XGBoost `cv_fixa` with the published hyperparameters held fixed and fold seeds 0, 1 and 2. Raw results are in `entradas-ad3d96d0.json` (data before the label fix) and `entradas-7084f5b9.json` (after). Both were produced by `uv run eficiencia-experimento entradas`, a command that exists at commit `9c8d611` and was reverted with the rest of the experiment.
+
+**Label fix.** The PBEV spreadsheet entered the Toyota RAV4 S/SX Hybrid as combustion, with no battery, while the same car also appears as a hybrid in two other rows. The cleaning now turns any "combustion" row whose name says HYBRID, HÍBRIDO or HEV into a hybrid, and `checar` blocks it from coming back. Only these 2 rows change: 286 combustion and 65 hybrids, still 510 homologations.
+
+**Share of distance on fuel.** This was a derived input for plug-ins: 1 − UF(electric range), with the WLTP fleet utility factor (dn = 800 km). It was 1 for combustion and hybrids and 0 for electric cars, and consumption was constrained to rise with it.
+
+| Variant | MJ/km error (mean of 3) | Per seed | Plug-in per seed | Hybrid per seed |
+|---|---|---|---|---|
+| Before the label fix | 5.636 % | 5.53 / 5.81 / 5.57 | 12.20 / 13.90 / 12.39 | 7.09 / 6.56 / 7.51 |
+| After the label fix | 5.447 % | 5.29 / 5.64 / 5.41 | 11.98 / 13.97 / 12.50 | 7.45 / 7.39 / 8.01 |
+| After the fix + share of distance on fuel | 5.355 % | 5.22 / 5.54 / 5.30 | 11.51 / 12.88 / 11.88 | 7.86 / 7.75 / 8.10 |
+
+**Verdict:**
+- **The label fix stays.** It is a data correction, and it improves every seed, by −0.19 points on average. The gain comes from combustion cars, at about −0.5 points, because a 45 % outlier left that group. The hybrid error rises because the group gained two hard cars.
+- **The share of distance on fuel stays out.** The rule set in the plan before the probe asked for three things:
+  - **Mean gain of at least 0.10 points:** not met. It gained 0.092 points.
+  - **Better on at least 2 of 3 seeds:** met, on all 3.
+  - **Better on plug-ins:** met, by −0.7 points on average.
+
+  It also made hybrids worse on every seed, by +0.1 to +0.4 points (+0.29 on average). Putting combustion and hybrids at the same value of 1 seems to cost the trees a useful split. The code was reverted, and the result is recorded here.
+
+**Suspect kept as is, without proof:** AMG GLC63S E-Performance, at 2.985 MJ/km with 18 km of electric range and no battery in the spreadsheet. The C63S E-Performance, with the same powertrain, has 1.81. No second source covers this car, so the value stays until the label can be checked.
+
+**Full retrain (2026-11-13):** the 5 candidates with 100 trials per fold, on the data with the label fix (hash `7084f5b9`). XGBoost wins again with 5.64 % (was 5.71 %). Combustion improves (4.71 % → 4.17 %), and hybrids get worse (7.20 % → 7.93 %) because the two RAV4 rows moved into that group. Plug-ins also get worse (12.07 % → 13.05 %), with new hyperparameters and the same inputs, which is within the noise of 50 cars. The gain is smaller than in the probe (−0.07 against −0.19 points), because the full search picks new hyperparameters instead of holding them fixed.

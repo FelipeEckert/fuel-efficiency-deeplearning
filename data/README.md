@@ -22,6 +22,7 @@ The app does not need these files: it uses the versioned model in `modelos/vence
 | Problem | What was done |
 |---|---|
 | Powertrain written in many ways ("Hibrido", "Plug-In", "Gasolina"…) | standardized to Combustão / Híbrido / Plug-in / Elétrico (combustion, hybrid, plug-in, electric) |
+| RAV4 S/SX Hybrid entered as combustion | powertrain set to hybrid when the name says HYBRID/HÍBRIDO/HEV |
 | Brand with extra spaces or different casing; "VW", "CAOACHANGAN" | uppercase, no extra spaces; VOLKSWAGEN, CAOA CHANGAN |
 | Power in 200+ formats (kW, cv, "176 cv (G) e 176 cv (E)", "120 + 10", "150/110") | converted to kW. Flex: the higher of the gasoline and ethanol values. Mercedes "A + B" = engine + electric motor. JAC "cv/kW". Number without a unit: VW = cv, Mercedes = kW |
 | F2 > 0.12 in 10 rows (Oroch, Duster, MINI JCW, Ferrari 296) | reported in N/(m/s)²; divided by 3.6² |
@@ -70,7 +71,7 @@ Column names are in Portuguese, as in the code.
 | `direcao` | steering: eletrica, hidraulica, eletro-hidraulica |
 | `bateria_kwh` | nominal battery capacity (kWh); 0 for combustion; no gaps |
 | `autonomia_eletrica_km` | corrected electric-mode range (km), column 78 of the spreadsheet; 0 for combustion and hybrid; present for all 159 plug-in and electric vehicles |
-| `bateria_estimada` | quality flag, not a model input: True when the battery came from inference or the median (17 hybrids) |
+| `bateria_estimada` | quality flag, not a model input: True when the battery came from inference or the median (19 hybrids) |
 
 **Targets** (corrected values, the ones on the label; empty when not applicable)
 

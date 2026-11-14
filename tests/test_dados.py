@@ -4,12 +4,14 @@ import pytest
 from eficiencia.dados import (
     CV_PARA_KW,
     ENTRADA,
+    HIBRIDO_NO_NOME,
     SAIDA,
     checar,
     grupo_cv,
     limpar,
     potencia_kw,
     salvar,
+    sem_acento,
     transmissao,
 )
 
@@ -45,7 +47,13 @@ def test_contagens(limpo):
     assert len(df) == 510
     assert df["grupo_cv"].nunique() == 258
     assert rel["F2 convertido de N/(m/s)² para N/(km/h)²"] == 10
-    assert int(df["bateria_estimada"].sum()) == 17
+    assert int(df["bateria_estimada"].sum()) == 19
+    assert df["propulsao"].value_counts().to_dict() == {
+        "Combustão": 286,
+        "Híbrido": 65,
+        "Plug-in": 50,
+        "Elétrico": 109,
+    }
 
 
 @pytest.mark.parametrize(
@@ -66,6 +74,21 @@ def test_potencia_kw(txt, marca, esperado):
 def test_transmissao():
     assert transmissao("A - 6", "Combustão") == ("automatica", 6.0)
     assert transmissao("N.A.", "Elétrico") == ("direta", 1.0)
+
+
+def test_hibrido_no_nome():
+    for nome in ("I/TOYOTA/RAV4 SX HYBRID", "KIA NIRO HEV 1.6", "Q7 HÍBRIDO"):
+        assert HIBRIDO_NO_NOME.search(sem_acento(nome).upper())
+    for nome in ("CHEV/ONIX PLUS 10TAT", "MHEVX", "THEVENIN"):
+        assert not HIBRIDO_NO_NOME.search(sem_acento(nome).upper())
+
+
+@precisa_planilha
+def test_rav4_hybrid_vira_hibrido(limpo):
+    df, rel = limpo
+    rav4 = df[df["nome_homologado"].isin(["I/TOYOTA/RAV4 SX HYBRID", "I/TOYOTA/RAV4 S HYBRID"])]
+    assert set(rav4["propulsao"]) == {"Híbrido"} and (rav4["bateria_kwh"] > 0).all()
+    assert rel["Combustão com híbrido no nome -> Híbrido"] == 2
 
 
 def test_grupo_cv():
