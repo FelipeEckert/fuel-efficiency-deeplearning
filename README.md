@@ -14,13 +14,13 @@ All errors are the mean absolute percentage error on combined MJ/km, measured ou
 
 | Model | Overall | Combustion | Electric | Hybrid | Plug-in |
 |---|---|---|---|---|---|
-| Linear regression (ridge) | 7.46 % | 5.93 % | 7.38 % | 7.42 % | 16.52 % |
-| Random forest | 6.55 % | 5.31 % | 4.64 % | 11.61 % | 11.46 % |
-| **XGBoost (selected)** | **5.71 %** | **4.71 %** | **4.57 %** | **7.20 %** | **12.07 %** |
-| Neural network, one per target | 6.77 % | 5.51 % | 5.54 % | 7.32 % | 16.02 % |
-| Neural network, multi-output | 6.95 % | 6.12 % | 5.71 % | 7.16 % | 14.21 % |
+| Linear regression (ridge) | 7.36 % | 5.63 % | 7.43 % | 7.88 % | 16.48 % |
+| Random forest | 6.53 % | 5.01 % | 4.56 % | 12.14 % | 12.25 % |
+| **XGBoost (selected)** | **5.64 %** | **4.17 %** | **4.76 %** | **7.93 %** | **13.05 %** |
+| Neural network, one per target | 6.52 % | 5.17 % | 5.67 % | 7.14 % | 15.28 % |
+| Neural network, multi-output | 6.62 % | 5.41 % | 5.29 % | 6.73 % | 16.33 % |
 
-- XGBoost wins with 5.71 % overall. Follow-up experiments with CatBoost and LightGBM landed within seed noise of it, which suggests about 5.7 % is the limit of this data with these inputs.
+- XGBoost wins with 5.64 % overall (5.71 % before a label fix in the data). Follow-up experiments with CatBoost and LightGBM landed within seed noise of it, which suggests the remaining gains have to come from the data, not the algorithm.
 - The neural networks do not beat the tree ensembles here. With 510 homologations, the data is too small for them to pull ahead.
 - Plug-in hybrids are the hardest group, with only about 50 homologations in the data.
 
@@ -31,7 +31,7 @@ Model card (what it is for, measured coverage of the 90 % range, limits): [`rela
 1. **Cleaning** (`eficiencia.dados`). The source spreadsheet has 844 vehicle versions with inconsistent units and formats: power in more than 200 notations, F2 in the wrong unit for some rows, battery capacity missing or wrong. The cleaner standardizes everything and collapses identical versions into 510 unique homologations, one row per test. Every rule is documented in [`data/README.md`](data/README.md).
 2. **Grouped nested validation** (`eficiencia.validacao`). Hyperparameters are tuned with Optuna in an inner loop, and the error is measured in an outer loop, both split by model family. Studies are stored in SQLite and resume where they stopped, so long searches can run overnight.
 3. **Physical constraints** (`eficiencia.monotonia`). More mass, inertia, F0 or F2 must never predict lower consumption. Every model is built with monotonic constraints, and a candidate is only eligible if a check on the trained model confirms it.
-4. **Uncertainty** (`eficiencia.incerteza`). Each prediction comes with a 90 % range from conformal quantiles of the out-of-fold errors relative to the prediction, per target and powertrain. Measured coverage is 90.5–92 % for MJ/km.
+4. **Uncertainty** (`eficiencia.incerteza`). Each prediction comes with a 90 % range from conformal quantiles of the out-of-fold errors relative to the prediction, per target and powertrain. Measured coverage is 90.6–92.3 % for MJ/km.
 5. **Coverage warnings** (`eficiencia.faixa`). The app flags inputs outside the ranges observed in the training data for that powertrain.
 6. **Explanations** (`eficiencia.explicar`). For the XGBoost model, the app breaks a prediction into the contribution of each input (TreeSHAP values from `pred_contribs`) and can draw the path of the vehicle through a tree.
 

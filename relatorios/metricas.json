@@ -2,100 +2,100 @@
   "vencedor": "xgboost",
   "candidatos": {
     "linear": {
-      "erro_mj": 0.07460603596602636,
+      "erro_mj": 0.07364869373513254,
       "erro_por_propulsao": {
-        "Combustão": 0.0592862555646643,
-        "Elétrico": 0.07377335883193618,
-        "Híbrido": 0.07421461731940793,
-        "Plug-in": 0.16515639472492755
+        "Combustão": 0.05630155565053171,
+        "Elétrico": 0.07427615272459032,
+        "Híbrido": 0.0787906967575375,
+        "Plug-in": 0.16482185905290492
       },
       "erro_por_alvo": {
-        "mj_km_urbano": 0.08906527116573601,
-        "mj_km_estrada": 0.06505269958031606,
-        "kml_gasolina_urbano": 0.07152859093706694,
-        "kml_gasolina_estrada": 0.050274193993525666,
-        "kml_etanol_urbano": 0.05190670171177135,
-        "kml_etanol_estrada": 0.03258110400219664
+        "mj_km_urbano": 0.08784952920684116,
+        "mj_km_estrada": 0.06461122516982029,
+        "kml_gasolina_urbano": 0.07101576576757147,
+        "kml_gasolina_estrada": 0.04998403937239922,
+        "kml_etanol_urbano": 0.052310568173878004,
+        "kml_etanol_estrada": 0.032939782488262376
       },
       "n_tentativas": 600,
       "monotonia": "aprovado",
       "violacoes": []
     },
     "floresta": {
-      "erro_mj": 0.06550766112786549,
+      "erro_mj": 0.06529763474530745,
       "erro_por_propulsao": {
-        "Combustão": 0.053126916321866446,
-        "Elétrico": 0.04641463788507983,
-        "Híbrido": 0.11613884757310351,
-        "Plug-in": 0.11464824695869297
+        "Combustão": 0.05005882305016528,
+        "Elétrico": 0.0455901259458196,
+        "Híbrido": 0.12138177944065666,
+        "Plug-in": 0.12251661872045018
       },
       "erro_por_alvo": {
-        "mj_km_urbano": 0.07692388548214575,
-        "mj_km_estrada": 0.06123934244934422,
-        "kml_gasolina_urbano": 0.06721447806813168,
-        "kml_gasolina_estrada": 0.05784840850201964,
-        "kml_etanol_urbano": 0.04773024247576126,
-        "kml_etanol_estrada": 0.0420377518898452
+        "mj_km_urbano": 0.07603981631456395,
+        "mj_km_estrada": 0.06154132921702373,
+        "kml_gasolina_urbano": 0.06445485356953462,
+        "kml_gasolina_estrada": 0.05651927132608361,
+        "kml_etanol_urbano": 0.04687783463374254,
+        "kml_etanol_estrada": 0.04133971451803967
       },
       "n_tentativas": 600,
       "monotonia": "aprovado",
       "violacoes": []
     },
     "xgboost": {
-      "erro_mj": 0.057110234521025774,
+      "erro_mj": 0.05644239334280547,
       "erro_por_propulsao": {
-        "Combustão": 0.04711663893510619,
-        "Elétrico": 0.045731476214300175,
-        "Híbrido": 0.0719826363174402,
-        "Plug-in": 0.12073981194110223
+        "Combustão": 0.041677482024914225,
+        "Elétrico": 0.04760543504801589,
+        "Híbrido": 0.07927352243895187,
+        "Plug-in": 0.1304817873387944
       },
       "erro_por_alvo": {
-        "mj_km_urbano": 0.06843168695328553,
-        "mj_km_estrada": 0.05090554850173206,
-        "kml_gasolina_urbano": 0.059800613671618444,
-        "kml_gasolina_estrada": 0.04785497000356201,
-        "kml_etanol_urbano": 0.04433277209650106,
-        "kml_etanol_estrada": 0.034177975008908394
+        "mj_km_urbano": 0.06829422179015829,
+        "mj_km_estrada": 0.05104517231728754,
+        "kml_gasolina_urbano": 0.05543287481619658,
+        "kml_gasolina_estrada": 0.04713947501833512,
+        "kml_etanol_urbano": 0.04340373334703598,
+        "kml_etanol_estrada": 0.03381228546376419
       },
       "n_tentativas": 600,
       "monotonia": "aprovado",
       "violacoes": []
     },
     "rede_por_alvo": {
-      "erro_mj": 0.06772737717977349,
+      "erro_mj": 0.06516981411883807,
       "erro_por_propulsao": {
-        "Combustão": 0.05514419650068706,
-        "Elétrico": 0.055379990888837154,
-        "Híbrido": 0.07319058509988992,
-        "Plug-in": 0.16024015802620578
+        "Combustão": 0.051671858394142206,
+        "Elétrico": 0.05668441579199025,
+        "Híbrido": 0.07140898519578211,
+        "Plug-in": 0.15276536681659947
       },
       "erro_por_alvo": {
-        "mj_km_urbano": 0.08447417932518436,
-        "mj_km_estrada": 0.06552796698736184,
-        "kml_gasolina_urbano": 0.060590099653717956,
-        "kml_gasolina_estrada": 0.05284996546063089,
-        "kml_etanol_urbano": 0.05758833575422732,
-        "kml_etanol_estrada": 0.04058593055828798
+        "mj_km_urbano": 0.08098008336970898,
+        "mj_km_estrada": 0.06393117710645296,
+        "kml_gasolina_urbano": 0.05759225015694792,
+        "kml_gasolina_estrada": 0.04946731326274706,
+        "kml_etanol_urbano": 0.05423584851428377,
+        "kml_etanol_estrada": 0.03850086406748224
       },
       "n_tentativas": 600,
       "monotonia": "aprovado",
       "violacoes": []
     },
     "rede_multi": {
-      "erro_mj": 0.06954811027129898,
+      "erro_mj": 0.06622861440224295,
       "erro_por_propulsao": {
-        "Combustão": 0.061207251304959506,
-        "Elétrico": 0.05713082302846034,
-        "Híbrido": 0.07157118669857068,
-        "Plug-in": 0.1421120678084401
+        "Combustão": 0.05408847128773738,
+        "Elétrico": 0.052888260815327874,
+        "Híbrido": 0.06733627195991994,
+        "Plug-in": 0.16331224901170963
       },
       "erro_por_alvo": {
-        "mj_km_urbano": 0.08274755078245496,
-        "mj_km_estrada": 0.06407187716815842,
-        "kml_gasolina_urbano": 0.06575211205699756,
-        "kml_gasolina_estrada": 0.05589481762053413,
-        "kml_etanol_urbano": 0.05296914993053268,
-        "kml_etanol_estrada": 0.03943046407421961
+        "mj_km_urbano": 0.07890967371133682,
+        "mj_km_estrada": 0.06187776731347312,
+        "kml_gasolina_urbano": 0.05885555995498406,
+        "kml_gasolina_estrada": 0.05222171369178463,
+        "kml_etanol_urbano": 0.055302110766755744,
+        "kml_etanol_estrada": 0.0405844285646195
       },
       "n_tentativas": 600,
       "monotonia": "aprovado",

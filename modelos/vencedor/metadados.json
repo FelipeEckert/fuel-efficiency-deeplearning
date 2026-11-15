@@ -1,16 +1,16 @@
 {
   "algoritmo": "xgboost",
   "params": {
-    "n_estimators": 1178,
-    "max_depth": 5,
-    "learning_rate": 0.03492377029556782,
-    "subsample": 0.6420182922473265,
-    "colsample_bytree": 0.6093514545082879,
+    "n_estimators": 1262,
+    "max_depth": 6,
+    "learning_rate": 0.03160110464004988,
+    "subsample": 0.6161206013916076,
+    "colsample_bytree": 0.5205588203150939,
     "min_child_weight": 2,
-    "reg_lambda": 0.015516427527411565
+    "reg_lambda": 0.03753736138591272
   },
-  "data": "2026-11-10",
-  "hash_csv": "ad3d96d0",
+  "data": "2026-11-13",
+  "hash_csv": "7084f5b9",
   "rapido": false,
   "versoes": {
     "pandas": "3.1.0",
