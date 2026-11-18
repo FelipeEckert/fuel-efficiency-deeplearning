@@ -1,0 +1,5 @@
+known-empty ([], [], ['Add vehicles in the table, with the form or from a spreadsheet.'])
+known-na (['2.43 MJ/km'], ['90 % range: 2.36 – 2.52 MJ/km', '2 of 2 vehicles included (100 % of the volume)'], [])
+known-invalid (['3 MJ/km'], ['1 of 2 vehicles included (50 % of the volume)'], ['row 1: known MJ/km must be a number greater than zero'])
+export-names (['2 MJ/km'], ['2 of 2 vehicles included (100 % of the volume)'], [])
+export-na-name (['2 MJ/km'], ['3 of 3 vehicles included (100 % of the volume)'], [])
