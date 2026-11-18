@@ -1,0 +1,37 @@
+propulsao combustivel    mj_km  kml_etanol  kml_etanol_min  kml_etanol_max  kml_gasolina  kml_diesel
+      ice    gasolina 1.945743         NaN             NaN             NaN     11.136612         NaN
+      ice    gasolina 1.945743         NaN             NaN             NaN     11.136612         NaN
+      ice    gasolina 1.945743         NaN             NaN             NaN     11.136612         NaN
+      ice        flex 1.939650    7.757603        6.968567        8.748135     11.170018         NaN
+      ice        flex 1.939650    7.757603        6.968567        8.748135     11.170018         NaN
+      ice        flex 1.939650    7.757603        6.968567        8.748135     11.170018         NaN
+      ice      diesel 1.919538         NaN             NaN             NaN           NaN   14.052874
+      ice      diesel 1.919538         NaN             NaN             NaN           NaN   14.052874
+      ice      diesel 1.919538         NaN             NaN             NaN           NaN   14.052874
+      hev    gasolina 1.003012         NaN             NaN             NaN     21.445465         NaN
+      hev    gasolina 1.000459         NaN             NaN             NaN     21.495569         NaN
+      hev    gasolina 1.013701         NaN             NaN             NaN     21.218734         NaN
+      hev        flex 1.035155   14.451162       12.016491       18.123099     20.791317         NaN
+      hev        flex 1.031964   14.492482       12.053514       18.168861     20.850108         NaN
+      hev        flex 1.045229   14.310663       11.900625       17.944711     20.588940         NaN
+      hev      diesel 1.007589         NaN             NaN             NaN           NaN   26.579386
+      hev      diesel 1.005614         NaN             NaN             NaN           NaN   26.625717
+      hev      diesel 1.018664         NaN             NaN             NaN           NaN   26.289591
+     phev    gasolina 0.627784         NaN             NaN             NaN     13.301988         NaN
+     phev    gasolina 0.614281         NaN             NaN             NaN     13.554679         NaN
+     phev    gasolina 0.628640         NaN             NaN             NaN     13.115690         NaN
+     phev        flex 0.632567    8.510274        8.080344        8.940203     12.942348         NaN
+     phev        flex 0.618690    8.510274        8.080344        8.940203     13.276413         NaN
+     phev        flex 0.632777    8.510274        8.080344        8.940203     12.848136         NaN
+     phev      diesel 0.625119         NaN             NaN             NaN           NaN   42.743791
+     phev      diesel 0.611182         NaN             NaN             NaN           NaN   43.708796
+     phev      diesel 0.625067         NaN             NaN             NaN           NaN   42.740717
+      bev    electric 0.564338         NaN             NaN             NaN           NaN         NaN
+      bev    electric 0.550594         NaN             NaN             NaN           NaN         NaN
+      bev    electric 0.562415         NaN             NaN             NaN           NaN         NaN
+QUANTILES {'mj_km_urbano': 0.3331030476602424, 'mj_km_estrada': 0.30832524492727587, 'kml_gasolina_urbano': 0.13546147059417374, 'kml_gasolina_estrada': 0.1289196041942106, 'kml_etanol_urbano': 0.017491691098842785, 'kml_etanol_estrada': 0.13819276754526835, 'mj_km': 0.24621141356263979, 'kml_gasolina': 0.13281162724964285, 'kml_etanol': 0.05051888169552531}
+PHEV FLEX warnings ['Curb mass (kg) = 1495 is below every plug-in hybrid vehicle in the data (minimum 1515)', 'Category = SUVC was never seen in plug-in hybrid vehicles in the data']
+Model target attrs dict_keys(['semente', 'params', 'estimadores', 'prep'])
+params ['n_estimators', 'max_depth', 'learning_rate', 'subsample', 'colsample_bytree', 'min_child_weight', 'reg_lambda']
+estimadores ['mj_km_urbano', 'mj_km_estrada', 'kml_gasolina_urbano', 'kml_gasolina_estrada', 'kml_etanol_urbano', 'kml_etanol_estrada']
+REPEATED INDEX EQ True

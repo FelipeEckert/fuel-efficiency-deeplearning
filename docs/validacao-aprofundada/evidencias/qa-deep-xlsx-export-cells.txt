@@ -1,0 +1,8 @@
+qa-deep-xlsx-export-corrupt [[('First sheet', 's'), ('100', 's'), (1, 'n')]]
+qa-deep-xlsx-export-mixed-text-mj [[('Brazil 1', 's'), ('100', 's'), ('1,25', 's')], [('Brazil 2', 's'), ('300', 's'), ('2,75', 's')]]
+qa-deep-xlsx-export-na-mj [[('Invalid text', 's'), ('100', 's'), (None, 'inlineStr')], [('Baseline', 's'), ('100', 's'), (2, 'n')]]
+qa-deep-xlsx-export-na-name [[(None, 'inlineStr'), ('100', 's'), (1, 'n')], [(None, 'inlineStr'), ('100', 's'), (3, 'n')], [('Normal', 's'), ('100', 's'), (2, 'n')]]
+qa-deep-xlsx-export-names [[(12, 'n'), ('100', 's'), (1, 'n')], [(142, 'n'), ('100', 's'), (3, 'n')]]
+qa-deep-xlsx-export-numeric-volume-positive [[('Fraction', 's'), ('0.125', 's'), (1, 'n')], [('Control', 's'), ('100', 's'), (3, 'n')]]
+qa-deep-xlsx-export-numeric-volume [[('Fraction', 's'), ('1.125', 's'), (1, 'n')], [('Control', 's'), ('100', 's'), (3, 'n')]]
+qa-deep-xlsx-export-sheets-invalid [[('First sheet', 's'), ('100', 's'), (1, 'n')]]
