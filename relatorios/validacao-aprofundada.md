@@ -10,6 +10,8 @@ Importar duas linhas cujas células **Name** contêm os textos `0012` e `0142`. 
 
 **Aceite.** Conservar o texto original de **Name** da leitura à exportação. Cobrir zeros iniciais, `NA`, `N/A`, um nome alfanumérico e uma célula realmente vazia na mesma bateria de regressão. [Entrada com nomes textuais](../docs/validacao-aprofundada/evidencias/qa-deep-xlsx-names.xlsx) · [Arquivo baixado da interface](../docs/validacao-aprofundada/evidencias/qa-deep-xlsx-confirm-export-names.xlsx)
 
+**Como conferir o tipo de célula.** Nos dois arquivos acima, a coluna `Name` pode ser inspecionada com `openpyxl`. Na entrada, os pares `(valor, data_type)` são `("0012", "s")` e `("0142", "s")`. Na exportação, são `(12, "n")` e `(142, "n")`. O teste de regressão deve conferir tipo e valor após salvar e reabrir o XLSX. Um formato visual de quatro dígitos pode mascarar a perda do texto. Isso importa para fontes como o MLIT japonês, que identifica um subtipo do Daihatsu Thor por `0001`. [Exemplo japonês](fontes-internacionais.md#japão)
+
 ### 2. Explicitar quando uma célula de consumo conhecido vira estimativa — decisão de contrato
 
 Em uma carteira com duas linhas de mesmo volume, uma das fichas técnicas estava completa. Com **Known MJ/km** igual ao texto literal `NA` nessa linha e 3 na outra, o portfólio incluiu ambas, exibiu **2,43 MJ/km** e uma faixa de **2,36–2,52**. A exportação gravou a célula como vazia. Trocando apenas `NA` por `oops`, o aplicativo informou valor inválido e calculou **3 MJ/km**, com uma linha e 50% do volume. A diferença já nasce na leitura da planilha.
