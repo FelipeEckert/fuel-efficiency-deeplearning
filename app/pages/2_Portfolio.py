@@ -24,6 +24,7 @@ from eficiencia.portfolio import (
     media_portfolio,
     modelo_planilha,
     totais_portfolio,
+    volume_texto,
 )
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -33,7 +34,7 @@ ORIGEM = {"real": "Label", "estimado": "Estimated"}
 def _para_editor(df: pd.DataFrame) -> pd.DataFrame:
     """Tipos que o editor aceita: volume e categóricas como texto (o "10.000" digitado não vira número)."""
     df = df.copy()
-    texto = [v if isinstance(v, str) else "" if pd.isna(v) else numero(v) for v in df["volume"]]
+    texto = [v if isinstance(v, str) else "" if pd.isna(v) else volume_texto(v) for v in df["volume"]]
     df["volume"] = pd.Series(texto, index=df.index, dtype="string")  # tipo texto mesmo sem linhas
     for coluna in CATEGORICAS:
         df[coluna] = df[coluna].astype("string")
@@ -59,7 +60,7 @@ def _ao_enviar() -> None:
 
 
 def _adicionar(nome: str, volume: float, veiculo: dict) -> None:
-    linha = {"nome": nome, "volume": numero(volume), "mj_km_conhecido": np.nan, **veiculo}
+    linha = {"nome": nome, "volume": volume_texto(volume), "mj_km_conhecido": np.nan, **veiculo}
     atual = st.session_state["portfolio_atual"]
     _atualizar(pd.DataFrame([*atual.to_dict("records"), linha], columns=COLUNAS_PORTFOLIO))
 

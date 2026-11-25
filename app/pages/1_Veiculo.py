@@ -304,15 +304,14 @@ with caixa:
     alterado = _controles(veiculo)
 with direita:
     novo = _e_se(pacote, alterado, original, veiculo)
-    if novo is None:  # invalid adjustment: the saved scenario is the original
-        alterado, novo = veiculo, original
 with caixa:
     salvar, zerar = st.columns(2)
-    salvar.button(
+    salvar.button(  # ajuste inválido: nada a salvar, senão o cenário levaria o resultado do original
         "Save scenario",
         key="salvar_cenario",
         on_click=_salvar,
-        args=("nome_cenario", {"veiculo": alterado, "resultado": novo.to_dict()}),
+        args=("nome_cenario", None if novo is None else {"veiculo": alterado, "resultado": novo.to_dict()}),
+        disabled=novo is None,
     )
     zerar.button(
         "Back to original", key="zerar_simulador", on_click=_definir, args=({k: 0 for k in SLIDERS},)

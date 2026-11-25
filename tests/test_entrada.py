@@ -92,3 +92,11 @@ def test_autonomia_eletrica_zera_sem_recarga_e_tem_limite():
         pd.DataFrame([veiculo(propulsao="Plug-in", combustivel="flex", autonomia_eletrica_km=2500)])
     )
     assert any("Electric range (km) is outside the physical limits" in e for e in erros)
+
+
+def test_pbt_menor_que_a_massa_e_marchas_fracionadas():
+    v = veiculo()
+    _, erros = validar(pd.DataFrame([veiculo(pbt_kg=v["massa_om_kg"] - 1), veiculo(n_marchas=6.5)]))
+    assert len(erros) == 2 and erros[0].startswith("row 1: ") and erros[1].startswith("row 2: ")
+    ok, erros = validar(pd.DataFrame([veiculo(pbt_kg=v["massa_om_kg"], n_marchas=None)]))
+    assert erros == [] and len(ok) == 1  # PBT igual à massa e marchas ausentes continuam válidos

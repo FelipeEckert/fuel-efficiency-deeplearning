@@ -99,10 +99,14 @@ def _ao_mudar_propulsao(chave: str) -> None:
     if st.session_state[f"{chave}_propulsao"] == "Elétrico":
         st.session_state[f"{chave}_combustivel"] = "eletrico"
         st.session_state[f"{chave}_transmissao"] = "direta"
+        st.session_state[f"{chave}_n_marchas"] = 1.0
         st.session_state[f"{chave}_cilindrada_cm3"] = 0.0
     else:  # saiu do elétrico: combustível coerente e, se a cilindrada estava zerada, a típica
         if st.session_state[f"{chave}_combustivel"] == "eletrico":
             st.session_state[f"{chave}_combustivel"] = "gasolina"
+            if st.session_state[f"{chave}_transmissao"] == "direta":  # câmbio do elétrico: volta o do padrão
+                for campo in ("transmissao", "n_marchas"):
+                    st.session_state[f"{chave}_{campo}"] = _padrao_base()[campo]
         if st.session_state[f"{chave}_cilindrada_cm3"] == 0:
             st.session_state[f"{chave}_cilindrada_cm3"] = _padrao_base()["cilindrada_cm3"]
 
