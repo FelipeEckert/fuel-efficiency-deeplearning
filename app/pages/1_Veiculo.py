@@ -68,7 +68,7 @@ def _metrica(coluna, rotulo: str, r: pd.Series, saida: str, casas: int, unidade:
     coluna.caption(_faixa(r, saida, casas))
 
 
-def _resultado(r: pd.Series) -> None:
+def _resultado(r: pd.Series, veiculo: dict) -> None:
     st.subheader("Result")
     c1, c2, c3 = st.columns(3)
     _metrica(c1, "MJ/km combined", r, "mj_km", 2, "MJ/km")
@@ -80,6 +80,11 @@ def _resultado(r: pd.Series) -> None:
         st.caption("Consumption in km/l (combined city and highway) for the fuels this vehicle uses")
         for coluna, comb in zip(st.columns(len(aplicaveis)), aplicaveis):
             _metrica(coluna, f"km/l {NOMES_KML[comb]}", r, f"kml_{comb}", 1, "km/l")
+        if veiculo["propulsao"] == "Plug-in" and "diesel" in aplicaveis:
+            st.caption(
+                "Diesel km/l: there is no plug-in diesel in the data, so it is derived from MJ/km with the "
+                "diesel factor of combustion and hybrid cars. Treat it as a rough estimate."
+            )
     for aviso in r["avisos"]:
         st.warning(aviso)
 
@@ -310,7 +315,16 @@ with caixa:
         "Save scenario",
         key="salvar_cenario",
         on_click=_salvar,
-        args=("nome_cenario", None if novo is None else {"veiculo": alterado, "resultado": novo.to_dict()}),
+        args=(
+            "nome_cenario",
+            None
+            if novo is None
+            else {
+                "veiculo": alterado,
+                "resultado": novo.to_dict(),
+                "suavizado": any(st.session_state[k] for k in SLIDERS),  # tudo em 0: previsão direta
+            },
+        ),
         disabled=novo is None,
     )
     zerar.button(
@@ -318,7 +332,7 @@ with caixa:
     )
     st.caption("Saves the vehicle with the current changes (sliders at 0 = the vehicle in the form)")
 
-_resultado(original)
+_resultado(original, veiculo)
 contexto = _explicacao(pacote, veiculo)
 
 st.subheader("Inside the model")

@@ -90,7 +90,7 @@ exactly.
 | F0 −10 % | −1.8 % | 12.0 → 12.3 km/l |
 | F2 (aerodynamics) −10 % | −4.8 % | 12.0 → 12.6 km/l |
 
-The simulator averages the predictions within ±5 % around each adjustment. Without that, tree models respond in steps.
+The simulator averages the predictions within ±5 % around each adjustment. Without that, tree models respond in steps. The scenario export marks these rows as smoothed.
 
 ## Where not to use it, or use it with care
 
@@ -98,6 +98,7 @@ The simulator averages the predictions within ±5 % around each adjustment. With
   app shows a warning, and the prediction becomes an extrapolation.
 - **Plug-in hybrids.** The error is 13 % and the combined range is about ±25 %, because there are only 50 cars and consumption
   depends heavily on how the battery is used. Use it for orders of magnitude, not to choose between similar versions.
+- **Plug-in diesel.** There is no plug-in diesel in the data. Its km/l comes from MJ/km with the diesel factor of combustion and hybrid cars, not from a dedicated model, and has no measured error.
 - **Cars from future years.** There has been no validation on a PBEV from another year yet. The temporal test waits for
   PBEV 2027.
 - **On-road consumption.** The model learns homologation consumption, which is usually lower than real-world use.
