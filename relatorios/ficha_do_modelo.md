@@ -42,17 +42,21 @@ Toyota RAV4 Hybrid rows that the spreadsheet entered as combustion. Details are 
 and the experiments behind the current inputs are in
 [experimentos/conclusoes.md](experimentos/conclusoes.md).
 
-## The 90 % range delivers what it promises
+## The 90 % range
 
 The range comes from out-of-sample predictions: each car is predicted by a model that did not see it in training.
-Coverage is the share of cars whose true value fell inside the range the app shows.
+Coverage is the share of cars whose true value fell inside the range the app shows. It is measured on the same
+out-of-sample errors that set the range, so it confirms the calibration, not the coverage on a new model family.
+That test is still open.
 
-| Powertrain | MJ/km coverage | km/l coverage | Typical half-width (MJ/km) |
-|---|---|---|---|
-| Combustion | 90.6 % | 93.7 % | ±9.8 % |
-| Electric | 90.8 % | — | ±10.4 % |
-| Hybrid | 92.3 % | 94.6 % | ±20.0 % |
-| Plug-in | 92.0 % | 92.2 % | ±30.8 % |
+| Powertrain | MJ/km coverage | km/l coverage | Half-width, combined | City | Highway |
+|---|---|---|---|---|---|
+| Combustion | 90.6 % | 93.7 % | ±9.0 % | ±12.4 % | ±9.8 % |
+| Electric | 90.8 % | — | ±10.4 % | ±14.3 % | ±9.6 % |
+| Hybrid | 92.3 % | 94.6 % | ±20.0 % | ±24.6 % | ±15.7 % |
+| Plug-in | 92.0 % | 92.2 % | ±24.6 % | ±33.3 % | ±30.8 % |
+
+The half-widths are the ones the app uses, read from the shipped model package.
 
 For combustion and hybrids, km/l is derived from MJ/km with each fuel's physical factor, so the two numbers never
 contradict each other. For plug-ins that ratio varies a lot from car to car, so km/l comes from dedicated models.
@@ -78,7 +82,7 @@ The simulator averages the predictions within ±5 % around each adjustment. With
 
 - **Outside the data ranges.** If an input goes below the minimum or above the maximum seen for that powertrain, the
   app shows a warning, and the prediction becomes an extrapolation.
-- **Plug-in hybrids.** The error is 13 % and the range is about ±31 %, because there are only 50 cars and consumption
+- **Plug-in hybrids.** The error is 13 % and the combined range is about ±25 %, because there are only 50 cars and consumption
   depends heavily on how the battery is used. Use it for orders of magnitude, not to choose between similar versions.
 - **Cars from future years.** There has been no validation on a PBEV from another year yet. The temporal test waits for
   PBEV 2027.

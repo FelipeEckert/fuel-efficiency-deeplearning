@@ -127,6 +127,11 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
                 problemas.append(
                     f"{ROTULOS[campo]} must be greater than zero for a {nome_valor('propulsao', prop)} powertrain"
                 )
+        massa, pbt, marchas = limpo.get("massa_om_kg"), limpo.get("pbt_kg"), limpo.get("n_marchas")
+        if isinstance(massa, float) and isinstance(pbt, float) and pbt < massa:
+            problemas.append(f"{ROTULOS['pbt_kg']} must be at least the {ROTULOS['massa_om_kg']}")
+        if isinstance(marchas, float) and not math.isnan(marchas) and not marchas.is_integer():
+            problemas.append(f"{ROTULOS['n_marchas']} must be a whole number")
         if prop == "Combustão":
             limpo["bateria_kwh"] = 0.0
         if prop == "Elétrico":

@@ -5,7 +5,15 @@ import pandas as pd
 import pytest
 
 from eficiencia.esquema import ENTRADAS, carregar_base
-from eficiencia.portfolio import COLUNAS_PORTFOLIO, ler_planilha, media_portfolio, modelo_planilha
+from eficiencia.portfolio import (
+    COLUNAS_PORTFOLIO,
+    ROTULOS_PORTFOLIO,
+    _volume,
+    ler_planilha,
+    media_portfolio,
+    modelo_planilha,
+    volume_texto,
+)
 
 
 def test_media_ponderada_valores_reais():
@@ -194,3 +202,44 @@ def test_faixa_da_media_com_erros_oof_vazios_e_nan(pacote_rapido, monkeypatch):
     monkeypatch.setattr(pacote_rapido, "erros_oof", {"Combustão": [], "Elétrico": []})
     r = media_portfolio(_linhas_estimadas(), pacote_rapido)
     assert np.isnan(r.media_min) and np.isnan(r.media_max)
+
+
+def _xlsx(df: pd.DataFrame) -> bytes:
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize("v", [1.234, 12.345, 999.999, 0.001, 10.0, 1000.5, 1234.0])
+def test_volume_numerico_volta_igual_do_editor(v):
+    assert _volume(volume_texto(v)) == v  # 1.234 não pode virar 1234 ao passar pelo editor de texto
+
+
+def test_planilha_preserva_o_texto_do_volume_e_do_nome():
+    r = ROTULOS_PORTFOLIO
+    planilha = pd.DataFrame(
+        {r["nome"]: ["0012", "B"], r["volume"]: ["10.000", 10], r["mj_km_conhecido"]: [1.0, 3.0]}
+    )
+    df, erros = ler_planilha(_xlsx(planilha))
+    assert erros == [] and list(df["nome"]) == ["0012", "B"] and df.loc[0, "volume"] == "10.000"
+    assert media_portfolio(df).media_mj_km == pytest.approx((10000 * 1 + 10 * 3) / 10010)
+
+
+@pytest.mark.parametrize("ordem", [("Volume", "volume "), ("volume ", "Volume")])
+def test_cabecalhos_duplicados_viram_erro(ordem):
+    planilha = pd.DataFrame({"Name": ["A"], ordem[0]: [10], ordem[1]: [10000], "Known MJ/km": [1.0]})
+    df, erros = ler_planilha(_xlsx(planilha))
+    assert df.empty and len(erros) == 1 and all(c.strip() in erros[0] for c in ordem)
+
+
+def test_faixa_nao_muda_ao_dividir_ou_reordenar_linhas(pacote_rapido):
+    v = carregar_base()[ENTRADAS].iloc[0].to_dict()
+    outro = carregar_base()[ENTRADAS].iloc[3].to_dict()
+    uma = pd.DataFrame([{"nome": "X", "volume": 200, **v}, {"nome": "Z", "volume": 50, **outro}])
+    duas = pd.DataFrame(
+        [{"nome": "Z", "volume": 50, **outro}, *[{"nome": n, "volume": 100, **v} for n in "XY"]]
+    )
+    a, b = media_portfolio(uma, pacote_rapido), media_portfolio(duas, pacote_rapido)
+    assert (b.media_mj_km, b.media_min, b.media_max) == pytest.approx(
+        (a.media_mj_km, a.media_min, a.media_max)
+    )

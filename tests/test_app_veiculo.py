@@ -68,10 +68,14 @@ def test_salvar_cenario(pacote_rapido):
 
 def test_eletrico_preset(pacote_rapido):
     at = _pagina()
+    cambio = (at.session_state["veiculo_transmissao"], at.session_state["veiculo_n_marchas"])
     at.selectbox(key="veiculo_propulsao").set_value("Elétrico").run()
     assert at.session_state["veiculo_combustivel"] == "eletrico"
     assert at.session_state["veiculo_cilindrada_cm3"] == 0.0
     assert at.session_state["veiculo_transmissao"] == "direta"
+    assert at.session_state["veiculo_n_marchas"] == 1.0
+    at.selectbox(key="veiculo_propulsao").set_value("Combustão").run()  # sair do elétrico devolve o câmbio
+    assert (at.session_state["veiculo_transmissao"], at.session_state["veiculo_n_marchas"]) == cambio
 
 
 def test_classe_inercia_preenchida_e_edicao_mantida(pacote_rapido):
@@ -232,14 +236,15 @@ def test_resumo_da_ficha(pacote_rapido):
     assert nome_valor("propulsao", at.session_state["veiculo_propulsao"]) in resumo and " kg" in resumo
 
 
-def test_salvar_com_ajuste_invalido_guarda_o_original(pacote_rapido):
+def test_ajuste_invalido_nao_pode_ser_salvo(pacote_rapido):
     at = _pagina()
+    at.number_input(key="veiculo_pbt_kg").set_value(12000.0).run()  # o PBT não pode ficar abaixo da massa
     at.number_input(key="veiculo_massa_om_kg").set_value(9000.0).run()
     at.slider(key="es_massa").set_value(20).run()  # 10800 kg: fora do limite
-    assert at.error  # o ajuste não validou
+    assert at.error and at.button(key="salvar_cenario").disabled  # o ajuste não validou: nada a salvar
+    at.slider(key="es_massa").set_value(0).run()
     at.button(key="salvar_cenario").click().run()
-    salvo = at.session_state["cenarios"][0]
-    assert salvo["veiculo"]["massa_om_kg"] == 9000.0
+    assert at.session_state["cenarios"][0]["veiculo"]["massa_om_kg"] == 9000.0
 
 
 def test_autonomia_acompanha_a_faixa_da_propulsao(pacote_rapido):

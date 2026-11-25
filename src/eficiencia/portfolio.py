@@ -12,6 +12,7 @@ import pandas as pd
 from eficiencia.artefatos import Pacote, carregar
 from eficiencia.entrada import _CANONICOS, _campo, _chave, _numero, _vazio, validar
 from eficiencia.esquema import CATEGORICAS, ENTRADAS, ROTULOS
+from eficiencia.formato import numero
 from eficiencia.prever import prever
 
 COLUNAS_PORTFOLIO = ["nome", "volume", "mj_km_conhecido"] + ENTRADAS
@@ -45,6 +46,12 @@ def _volume(valor) -> float | None:
     return _numero(valor)
 
 
+def volume_texto(valor: float) -> str:
+    """Texto do volume para o editor, lido de volta pelo mesmo número: 1.234 vira "1.2340", nunca mil e poucos."""
+    texto = numero(valor)
+    return texto + "0" if _MILHARES_PT.fullmatch(texto) else texto
+
+
 @dataclass
 class ResultadoPortfolio:
     tabela: pd.DataFrame
@@ -69,22 +76,32 @@ def modelo_planilha() -> bytes:
 def ler_planilha(arquivo: bytes | BinaryIO) -> tuple[pd.DataFrame, list[str]]:
     """Lê a planilha pelo rótulo ou pelo nome da coluna; colunas opcionais ausentes viram vazias."""
     try:
-        bruto = pd.read_excel(io.BytesIO(arquivo) if isinstance(arquivo, bytes) else arquivo)
+        # dtype=object: sem isso o pandas lê o texto "10.000" como 10 e "0012" como 12
+        bruto = pd.read_excel(io.BytesIO(arquivo) if isinstance(arquivo, bytes) else arquivo, dtype=object)
     except Exception as erro:  # noqa: BLE001 - qualquer falha de leitura vira mensagem, nunca exceção
         return pd.DataFrame(columns=COLUNAS_PORTFOLIO), [
             f"could not read the spreadsheet: {type(erro).__name__}"
         ]
     origem: dict[str, object] = {}
+    erros = []
     for coluna in bruto.columns:
-        canonico = _CABECALHOS.get(_chave(str(coluna)))
-        if canonico is not None and canonico not in origem:
+        canonico = _CABECALHOS.get(_chave(str(coluna).strip()))
+        if canonico in origem:
+            erros.append(
+                f'columns "{origem[canonico]}" and "{coluna}" are both {ROTULOS_PORTFOLIO[canonico]}'
+            )
+        elif canonico is not None:
             origem[canonico] = coluna
-    erros = [f"required column missing: {ROTULOS_PORTFOLIO[c]}" for c in OBRIGATORIAS if c not in origem]
+    erros += [f"required column missing: {ROTULOS_PORTFOLIO[c]}" for c in OBRIGATORIAS if c not in origem]
     if erros:
         return pd.DataFrame(columns=COLUNAS_PORTFOLIO), erros
     df = pd.DataFrame(
         {c: bruto[origem[c]] if c in origem else np.nan for c in COLUNAS_PORTFOLIO}, index=bruto.index
     )
+    outras = [
+        c for c in COLUNAS_PORTFOLIO if c not in ("nome", "volume")
+    ]  # nome e volume ficam como na célula
+    df[outras] = df[outras].infer_objects()
     for coluna in CATEGORICAS:  # "Hibrido" -> "Híbrido": o editor só mostra as opções canônicas
         df[coluna] = df[coluna].map(
             lambda v, c=coluna: _CANONICOS[c].get(_chave(v.strip()), v) if isinstance(v, str) else v
@@ -120,11 +137,16 @@ def _faixa_media(tabela: pd.DataFrame, pacote: Pacote | None) -> tuple[float, fl
     rng = np.random.default_rng(0)
     n = 2000
     mj = np.tile(tabela.mj_km.to_numpy(), (n, 1))
-    # shortcut: sorteios independentes entre carros; a faixa sai estreita se os erros de carros parecidos
-    # forem correlacionados. Com mais dados, sortear por grupo (modelo/marca) em vez de por carro.
-    for j in np.flatnonzero(est):
-        fonte = np.asarray(erros.get(tabela.propulsao.iloc[j], todos), float)
-        mj[:, j] *= 1 + rng.choice(fonte if fonte.size else todos, n)
+    # linhas com a mesma previsão são o mesmo carro: um sorteio só, senão dividir uma linha estreita a faixa.
+    # shortcut: carros diferentes sorteiam independente; erros de versões irmãs correlacionados alargariam a
+    # faixa. Com mais dados, sortear por grupo (modelo/marca).
+    chaves = list(zip(tabela.propulsao, tabela.mj_km))
+    for chave in sorted({chaves[j] for j in np.flatnonzero(est)}):  # ordenado: a ordem das linhas não importa
+        fonte = np.asarray(erros.get(chave[0], todos), float)
+        sorteio = 1 + rng.choice(fonte if fonte.size else todos, n)
+        for j in np.flatnonzero(est):
+            if chaves[j] == chave:
+                mj[:, j] *= sorteio
     medias = mj @ tabela.volume.to_numpy() / tabela.volume.sum()
     return tuple(float(x) for x in np.percentile(medias, [5, 95]))
 
