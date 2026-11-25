@@ -90,7 +90,7 @@ exactly.
 | F0 −10 % | −1.8 % | 12.0 → 12.3 km/l |
 | F2 (aerodynamics) −10 % | −4.8 % | 12.0 → 12.6 km/l |
 
-The simulator averages the predictions within ±5 % around each adjustment. Without that, tree models respond in steps.
+The simulator averages the predictions within ±5 % around each adjustment. Without that, tree models respond in steps. The scenario export marks these rows as smoothed.
 
 ## Where not to use it, or use it with care
 
@@ -105,6 +105,10 @@ The simulator averages the predictions within ±5 % around each adjustment. With
   against 6.7 % for the other hybrids.
 - **Hybrid km/l.** The km/l the app shows for gasoline hybrids comes from MJ/km, so the two always agree. That costs
   about 1.3 points: 7.4 % against 6.1 % for the model's own km/l output.
+- **Plug-in diesel.** There is no plug-in diesel in the data. Its km/l comes from MJ/km with the diesel factor of
+  combustion and hybrid cars, not from a dedicated model. For gasoline plug-ins that factor would overstate km/l
+  about 2.5–3 times (median km/l × MJ/km of 8 for plug-ins against 21 to 22 for the others), so the app shows it
+  without a range and warns not to use it for decisions.
 - **Cars from future years.** There has been no validation on a PBEV from another year yet. The temporal test waits for
   PBEV 2027.
 - **On-road consumption.** The model learns homologation consumption, which is usually lower than real-world use.

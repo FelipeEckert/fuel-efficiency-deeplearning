@@ -154,6 +154,43 @@ def test_exportar_excel(pacote_rapido):
     assert rotulo not in colunas(float("nan"), float("nan")) and rotulo not in colunas(6.0, 6.0)
 
 
+def test_excel_marca_resultado_suavizado(pacote_rapido):
+    at = _pagina()
+    at.button(key="salvar_cenario").click().run()
+    at.slider(key="es_massa").set_value(-20).run()
+    at.button(key="salvar_cenario").click().run()
+    assert [c["suavizado"] for c in at.session_state["cenarios"]] == [False, True]
+    from formulario import excel_cenarios
+
+    lido = pd.read_excel(io.BytesIO(excel_cenarios(at.session_state["cenarios"])))
+    assert list(lido["Result"]) == ["Model prediction", "Smoothed simulator change (±5 % average)"]
+
+
+def test_diesel_em_plug_in_explica_a_origem(pacote_rapido):
+    at = _pagina()
+    at.selectbox(key="veiculo_propulsao").set_value("Plug-in").run()
+    at.selectbox(key="veiculo_combustivel").set_value("diesel").run()
+    assert any("no plug-in diesel in the data" in c.value for c in at.caption)
+    at.selectbox(key="veiculo_combustivel").set_value("flex").run()
+    assert not any("no plug-in diesel in the data" in c.value for c in at.caption)
+
+
+def test_diesel_em_plug_in_nao_mostra_faixa(pacote_rapido):
+    def metricas_e_faixas(at):
+        n = sum(
+            m.label.startswith("km/l") or m.label.startswith("MJ/km ") and "changes" not in m.label
+            for m in at.metric
+        )
+        return n, len([c for c in at.caption if c.value.startswith("90 % range")])
+
+    at = _pagina()
+    for propulsao, perde in (("Combustão", 0), ("Plug-in", 1)):
+        at.selectbox(key="veiculo_propulsao").set_value(propulsao).run()
+        at.selectbox(key="veiculo_combustivel").set_value("diesel").run()
+        n, faixas = metricas_e_faixas(at)
+        assert faixas == n - perde  # só o km/l diesel do plug-in fica sem faixa
+
+
 def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()
     at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()
