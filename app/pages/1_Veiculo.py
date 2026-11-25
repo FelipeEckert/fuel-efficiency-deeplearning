@@ -63,9 +63,12 @@ def _faixa(r: pd.Series, saida: str, casas: int) -> str:
     return f"90 % range: {_fixo(r[f'{saida}_min'], casas)} – {_fixo(r[f'{saida}_max'], casas)}"
 
 
-def _metrica(coluna, rotulo: str, r: pd.Series, saida: str, casas: int, unidade: str) -> None:
+def _metrica(
+    coluna, rotulo: str, r: pd.Series, saida: str, casas: int, unidade: str, faixa: bool = True
+) -> None:
     coluna.metric(rotulo, _valor(r, saida, casas, unidade))  # sem delta: nenhuma seta sobre a faixa
-    coluna.caption(_faixa(r, saida, casas))
+    if faixa:
+        coluna.caption(_faixa(r, saida, casas))
 
 
 def _resultado(r: pd.Series, veiculo: dict) -> None:
@@ -79,11 +82,14 @@ def _resultado(r: pd.Series, veiculo: dict) -> None:
     if aplicaveis:
         st.caption("Consumption in km/l (combined city and highway) for the fuels this vehicle uses")
         for coluna, comb in zip(st.columns(len(aplicaveis)), aplicaveis):
-            _metrica(coluna, f"km/l {NOMES_KML[comb]}", r, f"kml_{comb}", 1, "km/l")
+            sem_faixa = comb == "diesel" and veiculo["propulsao"] == "Plug-in"
+            _metrica(coluna, f"km/l {NOMES_KML[comb]}", r, f"kml_{comb}", 1, "km/l", faixa=not sem_faixa)
         if veiculo["propulsao"] == "Plug-in" and "diesel" in aplicaveis:
             st.caption(
                 "Diesel km/l: there is no plug-in diesel in the data, so it is derived from MJ/km with the "
-                "diesel factor of combustion and hybrid cars. Treat it as a rough estimate."
+                "diesel factor of combustion and hybrid cars. For gasoline plug-ins that factor would overstate "
+                "km/l about 2.5–3 times, so this number is likely too high and has no range. Do not use it "
+                "for decisions."
             )
     for aviso in r["avisos"]:
         st.warning(aviso)

@@ -175,6 +175,22 @@ def test_diesel_em_plug_in_explica_a_origem(pacote_rapido):
     assert not any("no plug-in diesel in the data" in c.value for c in at.caption)
 
 
+def test_diesel_em_plug_in_nao_mostra_faixa(pacote_rapido):
+    def metricas_e_faixas(at):
+        n = sum(
+            m.label.startswith("km/l") or m.label.startswith("MJ/km ") and "changes" not in m.label
+            for m in at.metric
+        )
+        return n, len([c for c in at.caption if c.value.startswith("90 % range")])
+
+    at = _pagina()
+    for propulsao, perde in (("Combustão", 0), ("Plug-in", 1)):
+        at.selectbox(key="veiculo_propulsao").set_value(propulsao).run()
+        at.selectbox(key="veiculo_combustivel").set_value("diesel").run()
+        n, faixas = metricas_e_faixas(at)
+        assert faixas == n - perde  # só o km/l diesel do plug-in fica sem faixa
+
+
 def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()
     at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()

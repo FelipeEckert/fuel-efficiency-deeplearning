@@ -98,7 +98,10 @@ The simulator averages the predictions within ±5 % around each adjustment. With
   app shows a warning, and the prediction becomes an extrapolation.
 - **Plug-in hybrids.** The error is 13 % and the combined range is about ±25 %, because there are only 50 cars and consumption
   depends heavily on how the battery is used. Use it for orders of magnitude, not to choose between similar versions.
-- **Plug-in diesel.** There is no plug-in diesel in the data. Its km/l comes from MJ/km with the diesel factor of combustion and hybrid cars, not from a dedicated model, and has no measured error.
+- **Plug-in diesel.** There is no plug-in diesel in the data. Its km/l comes from MJ/km with the diesel factor of
+  combustion and hybrid cars, not from a dedicated model. For gasoline plug-ins that factor would overstate km/l
+  about 2.5–3 times (median km/l × MJ/km of 8 for plug-ins against 21 to 22 for the others), so the app shows it
+  without a range and warns not to use it for decisions.
 - **Cars from future years.** There has been no validation on a PBEV from another year yet. The temporal test waits for
   PBEV 2027.
 - **On-road consumption.** The model learns homologation consumption, which is usually lower than real-world use.
