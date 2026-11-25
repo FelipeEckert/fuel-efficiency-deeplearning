@@ -78,6 +78,15 @@ def test_eletrico_preset(pacote_rapido):
     assert (at.session_state["veiculo_transmissao"], at.session_state["veiculo_n_marchas"]) == cambio
 
 
+def test_hibrido_pede_o_tipo(pacote_rapido):
+    at = _pagina()
+    assert not any(s.key == "veiculo_tipo_hibrido" for s in at.selectbox)  # combustão: campo escondido
+    at.selectbox(key="veiculo_propulsao").set_value("Híbrido").run()
+    assert at.selectbox(key="veiculo_tipo_hibrido").value == "leve_48v"  # o tipo mais comum na base
+    at.selectbox(key="veiculo_tipo_hibrido").set_value("pleno").run()
+    assert not at.exception and not at.error
+
+
 def test_classe_inercia_preenchida_e_edicao_mantida(pacote_rapido):
     at = _pagina()
     at.number_input(key="veiculo_massa_om_kg").set_value(900.0).run()

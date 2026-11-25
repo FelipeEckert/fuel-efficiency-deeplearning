@@ -95,6 +95,8 @@ def gerar(n: int = 420, semente: int = 0) -> pd.DataFrame:
                 "marca": marca,
                 "modelo": modelo,
                 "propulsao": prop,
+                # sem sorteio: não mexe na sequência do rng, e os dados sintéticos de antes não mudam
+                "tipo_hibrido": ("pleno" if i % 2 else "leve_48v") if prop == "Híbrido" else "nenhum",
                 "combustivel": combustivel,
                 "categoria": categoria,
                 "categoria_proconve": str(rng.choice(["CL2", "CL3"])) if picape else "PL",
