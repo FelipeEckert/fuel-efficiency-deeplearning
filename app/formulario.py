@@ -277,6 +277,9 @@ def excel_cenarios(cenarios: list[dict]) -> bytes:
     linhas = []
     for c in cenarios:
         linha = {"Scenario": c["nome"]}
+        linha["Result"] = (
+            "Smoothed simulator change (±5 % average)" if c.get("suavizado", False) else "Model prediction"
+        )
         linha.update({ROTULOS[campo]: c["veiculo"][campo] for campo in alteradas})
         for saida in SAIDAS:
             nome = nome_saida(saida)

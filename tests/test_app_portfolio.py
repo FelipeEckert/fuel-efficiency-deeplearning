@@ -139,3 +139,23 @@ def test_faixa_de_90_aparece_com_estimados(pacote_rapido):
         }
     at = _pagina(df)
     assert any("90 % range" in c.value for c in at.caption)
+
+
+def test_resumo_mostra_parcela_estimada(pacote_rapido):
+    from eficiencia.esquema import ENTRADAS, carregar_base
+
+    df = _tabela([("Label car", 300, 1.5)])
+    v = carregar_base()[ENTRADAS].iloc[0].to_dict()
+    df.loc[len(df)] = {**{c: np.nan for c in COLUNAS_PORTFOLIO}, "nome": "Est", "volume": 100, **v}
+    at = _pagina(df)
+    assert any(c.value == "1 of them estimated by the model (25 % of the volume)" for c in at.caption)
+
+
+def test_resumo_sem_estimados_nao_mostra_parcela(pacote_rapido):
+    at = _pagina(_tabela([("A", 100, 1.5), ("B", 300, 2.0)]))
+    assert not any("estimated by the model" in c.value for c in at.caption)
+
+
+def test_aviso_de_sessao_junto_a_tabela(pacote_rapido):
+    at = _pagina()
+    assert any("reloading the page clears it" in c.value for c in at.caption)

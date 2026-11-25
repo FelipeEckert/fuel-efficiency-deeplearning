@@ -170,7 +170,8 @@ editado = st.data_editor(
 )
 st.caption(
     "Volume accepts thousands separators (10,000). Fill in Known MJ/km for vehicles that already have a "
-    "label; leave it empty for the model to estimate."
+    "label; leave it empty (or NA) for the model to estimate. The table lives only in this browser session: "
+    "reloading the page clears it, so use Download portfolio to keep a copy."
 )
 st.session_state["portfolio_atual"] = editado
 
@@ -218,6 +219,12 @@ with topo:
         st.caption(
             f"{resultado.n_incluidos} of {resultado.n_total} vehicles included ({numero(pct, 1)} % of the volume)"
         )
+        estimados = resultado.tabela[resultado.tabela.origem == "estimado"]
+        if not estimados.empty:
+            pct_est = 100 * estimados.volume.sum() / resultado.volume_total if resultado.volume_total else 0
+            st.caption(
+                f"{len(estimados)} of them estimated by the model ({numero(pct_est, 1)} % of the volume)"
+            )
         if not resultado.tabela.empty:
             c1, c2 = st.columns(2)
             c1.subheader("By powertrain")

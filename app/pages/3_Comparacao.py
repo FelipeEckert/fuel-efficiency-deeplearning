@@ -27,27 +27,37 @@ MSG_CORROMPIDO = (
 )
 
 
+def _campo_invalido(metricas: dict) -> str | None:
+    """Caminho do primeiro campo inválido do relatório, ou None se estiver tudo certo."""
+    candidatos = metricas["candidatos"]
+    if not isinstance(candidatos, dict) or not candidatos:
+        return "candidatos"
+    if metricas["vencedor"] is not None and metricas["vencedor"] not in candidatos:
+        return "vencedor"
+    for nome, c in candidatos.items():
+        base = f"candidatos.{nome}"
+        if not isinstance(c, dict):
+            return base
+        if not isinstance(c.get("erro_mj"), (int, float)):
+            return f"{base}.erro_mj"
+        por_propulsao = c.get("erro_por_propulsao", {})
+        if not isinstance(por_propulsao, dict):
+            return f"{base}.erro_por_propulsao"
+        for propulsao, erro in por_propulsao.items():
+            if not isinstance(erro, (int, float)):
+                return f"{base}.erro_por_propulsao.{propulsao}"
+    return None
+
+
 def _carregar(arquivo: Path) -> dict:
     """Métricas do treino; se o arquivo estiver corrompido ou incompleto (treino interrompido), mostra erro e para."""
     try:
         metricas = json.loads(arquivo.read_text(encoding="utf-8"))
-        candidatos = metricas["candidatos"]
-        ok = (
-            isinstance(candidatos, dict)
-            and len(candidatos) > 0
-            and (metricas["vencedor"] is None or metricas["vencedor"] in candidatos)
-            and all(
-                isinstance(c, dict)
-                and isinstance(c.get("erro_mj"), (int, float))
-                and isinstance(c.get("erro_por_propulsao", {}), dict)
-                and all(isinstance(e, (int, float)) for e in c.get("erro_por_propulsao", {}).values())
-                for c in candidatos.values()
-            )
-        )
+        campo = _campo_invalido(metricas)
     except OSError, ValueError, KeyError, TypeError:  # ValueError inclui JSONDecodeError
-        ok = False
-    if not ok:
-        st.error(MSG_CORROMPIDO)
+        campo = ""  # ilegível ou sem chave de topo: sem campo a apontar
+    if campo is not None:
+        st.error(MSG_CORROMPIDO.replace(".", f" (invalid field: {campo}).", 1) if campo else MSG_CORROMPIDO)
         st.stop()
     return metricas
 
