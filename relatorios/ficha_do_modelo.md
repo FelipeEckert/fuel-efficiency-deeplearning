@@ -98,6 +98,13 @@ The simulator averages the predictions within ±5 % around each adjustment. With
   app shows a warning, and the prediction becomes an extrapolation.
 - **Plug-in hybrids.** The error is 13 % and the combined range is about ±25 %, because there are only 50 cars and consumption
   depends heavily on how the battery is used. Use it for orders of magnitude, not to choose between similar versions.
+- **Before the electric range is known.** The electric range in the data is the one measured in the homologation test.
+  Leaving it out raises the error from 4.5 % to 5.1 % for electric cars and from 12.9 % to 15.0 % for plug-ins. A design
+  target 15 % above the real range barely matters (4.6 % and 12.4 %), so a reasonable target is better than none.
+- **Hybrids whose battery was estimated.** The 19 hybrids with no battery capacity in the spreadsheet err 10.9 %,
+  against 6.7 % for the other hybrids.
+- **Hybrid km/l.** The km/l the app shows for gasoline hybrids comes from MJ/km, so the two always agree. That costs
+  about 1.3 points: 7.4 % against 6.1 % for the model's own km/l output.
 - **Cars from future years.** There has been no validation on a PBEV from another year yet. The temporal test waits for
   PBEV 2027.
 - **On-road consumption.** The model learns homologation consumption, which is usually lower than real-world use.

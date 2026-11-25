@@ -270,3 +270,68 @@ The audit in `auditoria-do-produto.md` (finding 3) pointed out that the publishe
 - **Per-fold coverage:** it varies from 87.6 % to 95.5 % (88 to 119 cars per fold).
 - **Fuel km/l ranges:** they are conservative, most for ethanol and diesel. Narrowing them would need quantiles of the km/l errors themselves instead of the MJ/km range divided by the fuel factor.
 - **Not tested:** a new model year.
+
+## H11: the rest of the audit's study items (2026-11-25)
+
+These are the remaining study items from `auditoria-do-produto.md`. All use the shipped XGBoost (5.64 %). Fold seeds are 0, 1 and 2 where the result is a mean.
+
+### km/l through the app (finding 6)
+
+The app derives km/l from MJ/km for combustion and hybrids, but the training scores the model's own km/l outputs. Here km/l goes through `prever._registro`. The fuel factors are recomputed from each fold's training rows only.
+
+| Fuel, combined | Cars | App path | Model's own output | Bias of the app path |
+|---|---|---|---|---|
+| Gasoline | 344 | 4.82 % | 4.62 % | +0.40 % |
+| Ethanol | 168 | 3.43 % | 3.56 % | +0.19 % |
+| Diesel | 57 | 4.25 % | — | +0.01 % |
+
+- **Combustion:** the app path ties or wins (gasoline 4.11 % vs 4.13 %, ethanol 3.24 % vs 3.39 %).
+- **Gasoline hybrids:** the app path loses, 7.41 % against 6.13 % (city 9.25 % against 7.45 %). A factor computed from hybrids only did not help (7.45 %).
+- **Diesel hybrids:** the 7 cars come out 5.8 % low.
+- **Decision:** the derived km/l stays, because it keeps km/l and MJ/km consistent. The cost is recorded in the model card.
+
+### Before the electric range is known (finding 2)
+
+`autonomia_eletrica_km` is the range measured in the homologation test, which does not exist yet when a car is being designed. Two variants were compared with the published hyperparameters:
+- **Absent:** retrained with the range set to a constant, so the trees cannot use it.
+- **Target +15 %:** the shipped inputs, with every test car's range raised 15 %, as an optimistic design target.
+
+| Powertrain | Measured | Target +15 % | Absent |
+|---|---|---|---|
+| Electric | 4.53 % | 4.63 % | 5.10 % |
+| Plug-in | 12.85 % | 12.40 % | 15.04 % |
+| All cars | 5.39 % | 5.37 % | 5.71 % |
+
+**Verdict:**
+- **Range left out:** the plug-in error rises by 2.2 points, and the error rises on every seed.
+- **Optimistic target:** it costs almost nothing. For plug-ins it even helps, because the model overestimates them (+6.4 % bias) and a longer range lowers the estimate.
+
+### Sibling cars in different families (finding 5)
+
+Pairs were counted when they have the same powertrain, fuel, transmission and displacement, sit in different `grupo_cv`, and are within 3 % on mass, F0, F2 and power.
+
+- **What turned up:** 13 pairs, all real siblings: Q3 and Q5 SUV/Sportback, Argo/Pulse/Strada, Boxster/Cayman, iX1/Countryman, Range Rover/Range Rover Sport. With fold seed 0, 11 of them land in different folds.
+- **Merging them:** it turns 258 groups into 250 and moves the mean error from 5.394 % to 5.420 % (+0.03 points, within seed noise).
+- **Verdict:** the family split leaks very little, and the published error is not inflated by it.
+
+### Is XGBoost really the best? (finding 9)
+
+The five candidates' out-of-fold errors come from the 2026-11-12 studies. They were resampled by family 2000 times.
+
+| Candidate | Error | Gap to XGBoost | 90 % interval of the gap |
+|---|---|---|---|
+| XGBoost | 5.64 % | — | — |
+| Neural network, one per target | 6.52 % | +0.88 | +0.14 to +1.72 |
+| Random forest | 6.53 % | +0.89 | +0.47 to +1.32 |
+| Neural network, multi-output | 6.62 % | +0.99 | +0.27 to +1.76 |
+| Linear regression | 7.37 % | +1.72 | +0.94 to +2.50 |
+
+**Verdict:**
+- **XGBoost wins 96.6 % of the resamples**, and every gap interval stays above zero. The choice is not luck.
+- **Selection optimism:** with a 0.9-point lead over the runner-up, the optimism of picking the best of five is small.
+
+### Battery imputation inside the fold (finding 10)
+
+Only hybrids get the median battery. The median of hybrids with a known battery is 0.90 kWh in the training part of all 15 folds (3 seeds × 5 folds), the same as the global value. Computing it inside the fold would change nothing.
+
+The 19 hybrids with an estimated battery do err more: 10.94 % against 6.68 %. Finding their real capacity is the next data fix.
