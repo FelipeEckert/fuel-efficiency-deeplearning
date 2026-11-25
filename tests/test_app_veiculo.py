@@ -143,6 +143,16 @@ def test_exportar_excel(pacote_rapido):
     assert len(dados) > 0
     assert len(pd.read_excel(io.BytesIO(dados))) == 1
 
+    def colunas(*marchas):
+        cenarios = [{"nome": str(m), "veiculo": {**v, "n_marchas": m}, "resultado": r} for m in marchas]
+        return set(pd.read_excel(io.BytesIO(excel_cenarios(cenarios))).columns)
+
+    rotulo = ROTULOS["n_marchas"]
+    assert rotulo in colunas(6.0, float("nan")) and rotulo in colunas(
+        float("nan"), 6.0
+    )  # só um ausente: muda
+    assert rotulo not in colunas(float("nan"), float("nan")) and rotulo not in colunas(6.0, 6.0)
+
 
 def test_entrada_invalida_mostra_erro(pacote_rapido):
     at = _pagina()

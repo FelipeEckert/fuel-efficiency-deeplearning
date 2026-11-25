@@ -22,3 +22,23 @@ def test_monotonia_reprova_modelo_invertido():
 
 def test_monotonia_aprova_modelo_coerente():
     assert checar_monotonia(Crescente(), carregar_base()) == []
+
+
+class Ausente:  # devolve NaN: o teste de direção não acusaria nada
+    def __init__(self, alvos):
+        self.alvos = alvos
+
+    def predict(self, X):
+        v = 1 + X["massa_om_kg"].to_numpy() / 1000
+        prev = pd.DataFrame({a: (v if a.startswith("mj_km") else 1 / v) for a in ALVOS}, index=X.index)
+        prev[self.alvos] = float("nan")
+        return prev
+
+
+def test_monotonia_reprova_mj_km_ausente():
+    assert checar_monotonia(Ausente(["mj_km_urbano"]), carregar_base())
+    assert checar_monotonia(Ausente(ALVOS), carregar_base())
+
+
+def test_monotonia_aceita_km_l_ausente():  # combustível que não se aplica ao carro
+    assert checar_monotonia(Ausente(["kml_etanol_urbano", "kml_etanol_estrada"]), carregar_base()) == []

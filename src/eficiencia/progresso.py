@@ -9,7 +9,7 @@ from eficiencia.esquema import carregar_base
 from eficiencia.formato import numero
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.treino import STORAGE
-from eficiencia.validacao import hash8, prefixo_estudo
+from eficiencia.validacao import hash8, prefixo_estudo, tentativas_feitas
 
 ESTUDOS_POR_MODELO = 6  # 5 dobras externas + o estudo final, como em treino.treinar
 
@@ -40,7 +40,7 @@ def progresso(storage: str, meta: int, h: str) -> list[dict]:
 
     linhas = []
     for nome, lista in estudos.items():
-        feitas = sum(min(meta, sum(t.state.is_finished() for t in trials)) for trials in lista)
+        feitas = sum(min(meta, tentativas_feitas(trials)) for trials in lista)
         valores = [t.value for trials in lista for t in trials if t.state == TrialState.COMPLETE]
         total = meta * ESTUDOS_POR_MODELO
         if any(_rodando(trials) for trials in lista):

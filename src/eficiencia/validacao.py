@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import optuna
 import pandas as pd
+from optuna.trial import TrialState
 
 from eficiencia.esquema import ALVOS, ENTRADAS
 from eficiencia.fisica import combinar_mj
@@ -42,8 +43,14 @@ def erro_mj_combinado(df: pd.DataFrame, previsto: pd.DataFrame) -> np.ndarray:
 
 
 def hash8(df: pd.DataFrame) -> str:
-    dados = pd.util.hash_pandas_object(df[ENTRADAS + ALVOS], index=False).to_numpy().tobytes()
+    # grupo_cv define as dobras: mudar um grupo precisa nascer estudo novo, não retomar o antigo
+    dados = pd.util.hash_pandas_object(df[ENTRADAS + ALVOS + ["grupo_cv"]], index=False).to_numpy().tobytes()
     return hashlib.sha256(dados).hexdigest()[:8]
+
+
+def tentativas_feitas(trials: list) -> int:
+    """Tentativas que contam no orçamento: concluídas ou podadas; uma falha não conta, é refeita."""
+    return sum(t.state in (TrialState.COMPLETE, TrialState.PRUNED) for t in trials)
 
 
 def prefixo_estudo(nome: str, h: str) -> str:
@@ -93,8 +100,8 @@ def _estudo(
                 raise optuna.TrialPruned()
         return float(np.concatenate(erros).mean())
 
-    # n_tentativas é o total do estudo: retomar completa só as que faltam (uma tentativa interrompida não conta)
-    feitas = sum(t.state.is_finished() for t in estudo.trials)
+    # n_tentativas é o total do estudo: retomar completa só as que faltam (interrompida ou com falha não conta)
+    feitas = tentativas_feitas(estudo.trials)
     estudo.optimize(objetivo, n_trials=max(0, n_tentativas - feitas))
     return estudo
 
