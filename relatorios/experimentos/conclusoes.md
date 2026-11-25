@@ -249,3 +249,24 @@ The same paired probe as H8: XGBoost `cv_fixa` with the published hyperparameter
 **Suspect kept as is, without proof:** AMG GLC63S E-Performance, at 2.985 MJ/km with 18 km of electric range and no battery in the spreadsheet. The C63S E-Performance, with the same powertrain, has 1.81. No second source covers this car, so the value stays until the label can be checked.
 
 **Full retrain (2026-11-13):** the 5 candidates with 100 trials per fold, on the data with the label fix (hash `7084f5b9`). XGBoost wins again with 5.64 % (was 5.71 %). Combustion improves (4.71 % → 4.17 %), and hybrids get worse (7.20 % → 7.93 %) because the two RAV4 rows moved into that group. Plug-ins also get worse (12.07 % → 13.05 %), with new hyperparameters and the same inputs, which is within the noise of 50 cars. The gain is smaller than in the probe (−0.07 against −0.19 points), because the full search picks new hyperparameters instead of holding them fixed.
+
+## H10: does the 90 % range cover new families? (2026-11-25)
+
+The audit in `auditoria-do-produto.md` (finding 3) pointed out that the published coverage was measured on the same out-of-fold errors that set the range, so it matched the calibration by construction.
+
+**Method.** The out-of-fold predictions of the shipped XGBoost come from the nested CV (5 outer folds split by model family, the 2026-11-12 studies, 5.64 %). For each outer fold, the quantiles are recomputed with `calcular_quantis` on the other 4 folds only. The held-out fold's ranges are then built by `prever._registro`, the code the app uses, with those quantiles.
+
+| Output | Inside / cars | Coverage | 90 % interval (Wilson) |
+|---|---|---|---|
+| MJ/km combined | 464 / 510 | 91.0 % | 88.7–92.9 % |
+| MJ/km city | 459 / 510 | 90.0 % | 87.6–92.0 % |
+| MJ/km highway | 465 / 510 | 91.2 % | 88.9–93.0 % |
+| Gasoline km/l | 322 / 344 | 93.6 % | 91.1–95.5 % |
+| Ethanol km/l | 163 / 168 | 97.0 % | 94.0–98.5 % |
+| Diesel km/l | 56 / 57 | 98.2 % | 92.5–99.6 % |
+
+**Verdict:**
+- **The range holds on unseen families.** Every powertrain's MJ/km coverage is within its interval of 90 %.
+- **Per-fold coverage:** it varies from 87.6 % to 95.5 % (88 to 119 cars per fold).
+- **Fuel km/l ranges:** they are conservative, most for ethanol and diesel. Narrowing them would need quantiles of the km/l errors themselves instead of the MJ/km range divided by the fuel factor.
+- **Not tested:** a new model year.

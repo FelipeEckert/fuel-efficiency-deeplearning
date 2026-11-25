@@ -45,18 +45,32 @@ and the experiments behind the current inputs are in
 ## The 90 % range
 
 The range comes from out-of-sample predictions: each car is predicted by a model that did not see it in training.
-Coverage is the share of cars whose true value fell inside the range the app shows. It is measured on the same
-out-of-sample errors that set the range, so it confirms the calibration, not the coverage on a new model family.
-That test is still open.
+Coverage is the share of cars whose true value fell inside the range the app shows.
 
-| Powertrain | MJ/km coverage | km/l coverage | Half-width, combined | City | Highway |
-|---|---|---|---|---|---|
-| Combustion | 90.6 % | 93.7 % | ±9.0 % | ±12.4 % | ±9.8 % |
-| Electric | 90.8 % | — | ±10.4 % | ±14.3 % | ±9.6 % |
-| Hybrid | 92.3 % | 94.6 % | ±20.0 % | ±24.6 % | ±15.7 % |
-| Plug-in | 92.0 % | 92.2 % | ±24.6 % | ±33.3 % | ±30.8 % |
+**Coverage on families the range never saw.** For each of the 5 outer folds, the range is rebuilt from the errors of
+the other 4 folds only, then checked on the held-out fold. The held-out fold holds whole model families, so this is
+the coverage a new family gets. The km/l column goes through the same code as the app.
 
-The half-widths are the ones the app uses, read from the shipped model package.
+| Powertrain | Cars | MJ/km coverage | 90 % interval | Gasoline km/l coverage |
+|---|---|---|---|---|
+| Combustion | 286 | 90.6 % | 87.3–93.0 % | 94.1 % |
+| Electric | 109 | 90.8 % | 85.2–94.4 % | — |
+| Hybrid | 65 | 92.3 % | 85.0–96.2 % | 91.4 % |
+| Plug-in | 50 | 92.0 % | 83.3–96.4 % | 94.0 % |
+| **All** | **510** | **91.0 %** | **88.7–92.9 %** | **93.6 %** |
+
+- **Per fold:** MJ/km coverage goes from 87.6 % to 95.5 %.
+- **Ethanol and diesel:** km/l coverage is 97.0 % and 98.2 %, so the range there is wider than it needs to be.
+- **Still open:** all of this is one model year. Cars from the next PBEV may be farther from the data.
+
+**Half-widths the app uses**, read from the shipped model package:
+
+| Powertrain | Combined | City | Highway |
+|---|---|---|---|
+| Combustion | ±9.0 % | ±12.4 % | ±9.8 % |
+| Electric | ±10.4 % | ±14.3 % | ±9.6 % |
+| Hybrid | ±20.0 % | ±24.6 % | ±15.7 % |
+| Plug-in | ±24.6 % | ±33.3 % | ±30.8 % |
 
 For combustion and hybrids, km/l is derived from MJ/km with each fuel's physical factor, so the two numbers never
 contradict each other. For plug-ins that ratio varies a lot from car to car, so km/l comes from dedicated models.
