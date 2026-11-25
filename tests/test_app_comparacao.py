@@ -108,3 +108,11 @@ def test_grafico_de_erro_por_candidato(tmp_path, monkeypatch):
     at = _relatorio(tmp_path, monkeypatch, json.dumps(_metricas_completas()))
     assert not at.exception
     assert len(at.get("plotly_chart")) >= 1
+
+
+def test_comparacao_erro_por_propulsao_nulo(tmp_path, monkeypatch):
+    metricas = _metricas_completas()
+    metricas["candidatos"]["xgboost"]["erro_por_propulsao"] = None
+    at = _relatorio(tmp_path, monkeypatch, json.dumps(metricas))
+    assert not at.exception
+    assert at.error[0].value == MSG_CORROMPIDO

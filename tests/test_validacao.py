@@ -8,7 +8,7 @@ import pytest
 from eficiencia.esquema import ALVOS, carregar_base
 from eficiencia.modelos import CANDIDATOS
 from eficiencia.modelos.base import Candidato
-from eficiencia.validacao import buscar_params, cv_aninhada, cv_fixa, dobras_por_grupo
+from eficiencia.validacao import buscar_params, cv_aninhada, cv_fixa, dobras_por_grupo, hash8
 
 
 def test_dobras_sem_vazamento():
@@ -130,3 +130,18 @@ def test_semente_sampler_muda_so_a_busca(tmp_path):
     a = optuna.load_study(study_name=sem[0], storage=storage).trials
     b = optuna.load_study(study_name=com[0], storage=storage).trials
     assert [t.params for t in a] != [t.params for t in b]
+
+
+def test_hash_muda_com_o_grupo_da_cv():
+    df = carregar_base()
+    outro = df.assign(grupo_cv=df["grupo_cv"].iloc[0])  # todos na mesma família: outras dobras
+    assert hash8(df) == hash8(df.copy()) != hash8(outro)
+
+
+def test_tentativa_com_falha_nao_conta_no_orcamento(tmp_path):
+    storage = f"sqlite:///{tmp_path / 'e.db'}"
+    estudo = optuna.create_study(study_name="t", storage=storage)
+    estudo.tell(estudo.ask(), state=optuna.trial.TrialState.FAIL)
+    buscar_params("linear", carregar_base(), 1, storage, "t", n_dobras=2)
+    estados = [t.state for t in optuna.load_study(study_name="t", storage=storage).trials]
+    assert estados == [optuna.trial.TrialState.FAIL, optuna.trial.TrialState.COMPLETE]

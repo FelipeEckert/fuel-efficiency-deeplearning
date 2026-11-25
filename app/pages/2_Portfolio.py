@@ -189,7 +189,14 @@ if pacote is not None:
         nome = c1.text_input("Vehicle name", key="portfolio_nome")
         volume = c2.number_input("Volume", min_value=0.0, step=100.0, key="portfolio_volume")
         veiculo = formulario_veiculo("portfolio_form")
-        st.button("Add", key="adicionar_veiculo", on_click=_adicionar, args=(nome, volume, veiculo))
+        st.button(
+            "Add",
+            key="adicionar_veiculo",
+            on_click=_adicionar,
+            args=(nome, volume, veiculo),
+            disabled=volume <= 0,
+            help="Fill in a volume greater than zero first" if volume <= 0 else None,
+        )
 
 with topo:
     if editado.empty:

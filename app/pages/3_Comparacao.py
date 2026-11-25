@@ -37,7 +37,10 @@ def _carregar(arquivo: Path) -> dict:
             and len(candidatos) > 0
             and (metricas["vencedor"] is None or metricas["vencedor"] in candidatos)
             and all(
-                isinstance(c, dict) and isinstance(c.get("erro_mj"), (int, float))
+                isinstance(c, dict)
+                and isinstance(c.get("erro_mj"), (int, float))
+                and isinstance(c.get("erro_por_propulsao", {}), dict)
+                and all(isinstance(e, (int, float)) for e in c.get("erro_por_propulsao", {}).values())
                 for c in candidatos.values()
             )
         )
@@ -120,7 +123,7 @@ with st.container(border=True):
     st.dataframe(_tabela(candidatos, vencedor), hide_index=True)
 st.caption(
     "Errors come from nested cross-validation grouped by model family: each vehicle is predicted by a model "
-    "that did not see it in training. The overall error is the mean percentage error on combined MJ/km "
+    "that did not see it in training. The overall error is the mean absolute percentage error (MAPE) on combined MJ/km "
     "(city and highway). Only models that pass the monotonicity check can be selected."
 )
 

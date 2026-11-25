@@ -18,6 +18,12 @@ def checar_monotonia(
     rng = np.random.default_rng(semente)
     base = df[ENTRADAS].iloc[rng.choice(len(df), size=min(n_veiculos, len(df)), replace=False)]
     mensagens: list[str] = []
+    # NaN passaria calado no teste de direção (toda comparação com NaN é falsa); km/l pode faltar, ser infinito não
+    previsto = modelo.predict(base)[ALVOS]
+    for alvo in ALVOS:
+        v = previsto[alvo].to_numpy(dtype=float)
+        ruim = ~np.isfinite(v) if alvo.startswith("mj_km") else np.isinf(v)
+        mensagens += [f"{alvo} is not finite (vehicle at index {linha})" for linha in base.index[ruim]]
     for coluna in MONOTONAS:
         previsoes = []
         for fator in fatores:

@@ -263,13 +263,16 @@ def nome_saida(saida: str) -> str:
     return saida
 
 
+def _iguais(a, b) -> bool:
+    """Igualdade em que dois ausentes são iguais e um ausente difere de um valor."""
+    return (pd.isna(a) and pd.isna(b)) or (not pd.isna(a) and not pd.isna(b) and a == b)
+
+
 def excel_cenarios(cenarios: list[dict]) -> bytes:
     """Uma linha por cenário: entradas que mudam em algum cenário e saídas com faixa."""
     base = cenarios[0]["veiculo"]
     alteradas = [
-        campo
-        for campo in ENTRADAS
-        if any(c["veiculo"][campo] != base[campo] and not pd.isna(c["veiculo"][campo]) for c in cenarios)
+        campo for campo in ENTRADAS if any(not _iguais(c["veiculo"][campo], base[campo]) for c in cenarios)
     ]
     linhas = []
     for c in cenarios:

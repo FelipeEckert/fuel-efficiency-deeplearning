@@ -53,6 +53,7 @@ def test_volume_zero_mostra_erro_da_linha(pacote_rapido):
 def test_adicionar_veiculo_pelo_formulario(pacote_rapido):
     at = _pagina()
     at.text_input(key="portfolio_nome").input("Carro novo").run()
+    assert at.button(key="adicionar_veiculo").disabled  # volume zero: nada a adicionar
     at.number_input(key="portfolio_volume").set_value(200.0).run()
     at.button(key="adicionar_veiculo").click().run()
     assert len(at.session_state["portfolio"]) == 1
