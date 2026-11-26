@@ -14,7 +14,7 @@ The app does not need these files: it uses the versioned model in `modelos/vence
 
 ## Source
 
-- **PBEV 2026 data entry spreadsheet**: the "Dados de Entrada" sheet of `PED - PLANILHA DE ENTRADA DE DADOS PBEV 2026_05-05-2026.xlsm`, from Brazil's vehicle labeling program (PBEV, Inmetro). Its 844 vehicle versions become **510 unique homologations** (one row per test). The spreadsheet `ESPECIFICAÇÃO TÉCNICA - FEVEREIRO DE 2026.XLSM` is not used for now.
+- **PBEV 2026 data entry spreadsheet**: the "Dados de Entrada" sheet of `PED - PLANILHA DE ENTRADA DE DADOS PBEV 2026_05-05-2026.xlsm`, from Brazil's vehicle labeling program (PBEV, Inmetro). Its 844 vehicle versions become **510 unique homologations** (one row per test). The spreadsheet `ESPECIFICAÇÃO TÉCNICA - FEVEREIRO DE 2026.XLSM` is not used: it covers only 150 homologations, and its inputs made the model worse (H13 in `relatorios/experimentos/conclusoes.md`).
 - **`complemento_baterias.csv`**: battery capacity researched in public sources (Nov 2026) for the vehicles where PBEV does not report it. One row per brand + model + power + mass, with the source link, capacity type and confidence (alta / media / baixa / sem_fonte, that is high / medium / low / no source). It only fills gaps and never overwrites PBEV.
 
 ## Cleaning rules
