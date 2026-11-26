@@ -136,12 +136,13 @@ def treinar(
         detalhe = "\n".join(f"{n}: " + "; ".join(violacoes[n]) for n in nomes)
         raise RuntimeError(f"no candidate passed the monotonicity check:\n{detalhe}")
 
+    fatores = fatores_kml(df)
     pacote = Pacote(
         algoritmo=vencedor,
         modelo=modelos[vencedor],
-        quantis=calcular_quantis(df, resultados[vencedor].oof),
+        quantis=calcular_quantis(df, resultados[vencedor].oof, fatores),
         faixas=calcular_faixas(df),
-        fatores_kml=fatores_kml(df),
+        fatores_kml=fatores,
         referencias=_referencias(df),
         erros_oof=erros_relativos(df, resultados[vencedor].oof),
         metadados=metadados,

@@ -79,8 +79,9 @@ def test_kml_de_combustao_e_hibrido_deriva_do_mj_km(pacote_rapido, propulsao):
         for c, i in (("urbano", 0), ("estrada", 1)):
             fator = pacote_rapido.fatores_kml[comb][i]
             assert r[f"kml_{comb}_{c}"] * r[f"mj_km_{c}"] == pytest.approx(fator, rel=1e-9)
-            assert r[f"kml_{comb}_{c}_min"] == pytest.approx(fator / r[f"mj_km_{c}_max"], rel=1e-9)
-            assert r[f"kml_{comb}_{c}_max"] == pytest.approx(fator / r[f"mj_km_{c}_min"], rel=1e-9)
+            q = pacote_rapido.quantis[propulsao][f"kml_{comb}_{c}"]  # erro do próprio km/l derivado
+            assert r[f"kml_{comb}_{c}_min"] == pytest.approx(r[f"kml_{comb}_{c}"] * (1 - q), rel=1e-9)
+            assert r[f"kml_{comb}_{c}_max"] == pytest.approx(r[f"kml_{comb}_{c}"] * (1 + q), rel=1e-9)
 
 
 def test_kml_de_plugin_continua_vindo_do_modelo(pacote_rapido):
@@ -89,3 +90,17 @@ def test_kml_de_plugin_continua_vindo_do_modelo(pacote_rapido):
     r = prever(v, pacote_rapido).iloc[0]
     previsto = pacote_rapido.modelo.predict(pd.DataFrame([v])[ENTRADAS]).iloc[0]
     assert r["kml_gasolina_urbano"] == pytest.approx(previsto["kml_gasolina_urbano"])
+
+
+def test_diesel_de_plugin_escala_o_km_l_de_gasolina(pacote_rapido):
+    df = carregar_base()
+    v = {**df[df.propulsao == "Plug-in"][ENTRADAS].iloc[0].to_dict(), "combustivel": "diesel"}
+    r = prever(v, pacote_rapido).iloc[0]
+    previsto = pacote_rapido.modelo.predict(pd.DataFrame([v])[ENTRADAS]).iloc[0]
+    for c, i in (("urbano", 0), ("estrada", 1)):
+        razao = pacote_rapido.fatores_kml["diesel"][i] / pacote_rapido.fatores_kml["gasolina"][i]
+        assert r[f"kml_diesel_{c}"] == pytest.approx(previsto[f"kml_gasolina_{c}"] * razao)
+        q = pacote_rapido.quantis["Plug-in"][f"kml_gasolina_{c}"]
+        assert r[f"kml_diesel_{c}_max"] == pytest.approx(r[f"kml_diesel_{c}"] * (1 + q))
+    assert r["kml_diesel_min"] < r["kml_diesel"] < r["kml_diesel_max"]
+    assert np.isnan(r["kml_gasolina"])  # o veículo é diesel: a gasolina só serve de base

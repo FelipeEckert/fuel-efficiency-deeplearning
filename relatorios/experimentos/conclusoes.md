@@ -381,3 +381,19 @@ The input passed the bar: −0.18 points of mean error, better on all 3 seeds, a
 - **Why:** on the cars that have them, drivetrain, size and tires add little that mass, F0, F2 and power do not already carry. On the other two thirds the mean fill is noise.
 - **Not tried:** a subset of the inputs, or a separate model for the cars with a spec sheet. With a loss on every seed, neither looked worth the extra code.
 
+
+## H14: km/l ranges from the km/l error, and plug-in diesel (2026-11-26)
+
+H10 found the km/l ranges of combustion and hybrid cars too wide for ethanol and diesel. Their range was the MJ/km range divided by the fuel factor, so it inherited the MJ/km error, while the derived km/l errs less. Now `calcular_quantis` receives the fuel factors and measures the error of the km/l the app shows (factor / predicted MJ/km), per powertrain, fuel and cycle. The fold-held-out check (the H10 method) on the shipped 5.40 % model:
+
+| km/l | Cars | Before | After | Median half-width, combustion |
+|---|---|---|---|---|
+| Gasoline | 344 | 92.7 % | 91.9 % | ±10.2 % → ±9.0 % |
+| Ethanol | 168 | 96.4 % | 89.3 % | ±10.2 % → ±7.6 % |
+| Diesel | 57 | 98.2 % | 89.5 % | ±10.1 % → ±8.7 % |
+
+- **MJ/km:** unchanged (89.8 %).
+- **Diesel hybrids:** only 7 cars, so their range is close to the largest error seen; 5 of 7 fall inside on held-out folds.
+- **Package:** the shipped quantiles were recomputed from the same out-of-fold predictions (the stored Optuna studies reproduce 5.4044 %), with no retraining.
+
+**Plug-in diesel.** There is none in the data. Its km/l used to come from MJ/km with the combustion diesel factor, which would overstate a plug-in's km/l about 2.5–3 times. It now is the model's gasoline km/l for the same car times the diesel-to-gasoline ratio of the fuel factors (about 1.24), with the gasoline range. That ratio carries the energy content of the fuel, which is what changes when the fuel changes. No real plug-in diesel exists to check it against.

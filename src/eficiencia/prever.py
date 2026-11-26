@@ -51,33 +51,45 @@ def _registro(pacote: Pacote, veiculo: dict, previsto: dict) -> dict:
     mj_total = combinar_mj(mj["urbano"], mj["estrada"])
     _saida(r, "mj_km", mj_total, _faixa(mj_total, _quantil(pacote, p, "mj_km")))
 
-    # plug-in: gasolina e etanol saem do modelo (km/l × MJ/km não é constante); nos demais, do fator abaixo
-    for comb in ("gasolina", "etanol") if p == "Plug-in" else ():
+    # plug-in: km/l sai do modelo (km/l × MJ/km não é constante). Não há plug-in diesel nos dados: o diesel é o
+    # km/l de gasolina do modelo × razão diesel/gasolina dos fatores de combustão e híbrido
+    modelados = []
+    if p == "Plug-in":
+        diesel, gasolina = pacote.fatores_kml["diesel"], pacote.fatores_kml["gasolina"]
+        modelados = [("gasolina", "gasolina", (1.0, 1.0)), ("etanol", "etanol", (1.0, 1.0))]
+        modelados.append(("diesel", "gasolina", tuple(d / g for d, g in zip(diesel, gasolina))))
+    for comb, base, escala in modelados:
         km = {}
-        for c in CICLOS:
-            nome = f"kml_{comb}_{c}"
-            km[c] = float(previsto[nome]) if comb in aplicaveis else nan
-            _saida(r, nome, km[c], _faixa(km[c], _quantil(pacote, p, nome)))
+        for c, e in zip(CICLOS, escala):
+            km[c] = float(previsto[f"kml_{base}_{c}"]) * e if comb in aplicaveis else nan
+            _saida(r, f"kml_{comb}_{c}", km[c], _faixa(km[c], _quantil(pacote, p, f"kml_{base}_{c}")))
         total = combinar_kml(km["urbano"], km["estrada"])
-        _saida(r, f"kml_{comb}", total, _faixa(total, _quantil(pacote, p, f"kml_{comb}")))
+        _saida(r, f"kml_{comb}", total, _faixa(total, _quantil(pacote, p, f"kml_{base}")))
 
-    # km/l = fator / MJ/km; a faixa do km/l é fator / faixa do MJ/km (inverte mín. e máx.)
-    derivados = [("eletrico_eq", (FATOR_ELETRICO, FATOR_ELETRICO)), ("diesel", pacote.fatores_kml["diesel"])]
+    # km/l = fator / MJ/km. O fator elétrico é exato, então a faixa é a do MJ/km invertida; os de combustível são
+    # medianas, então a faixa vem do erro medido do próprio km/l (quantis calculados com os fatores)
+    derivados = [("eletrico_eq", (FATOR_ELETRICO, FATOR_ELETRICO))]
     if p != "Plug-in":
-        derivados += [(c, pacote.fatores_kml[c]) for c in ("gasolina", "etanol")]
-    for comb, (fator_u, fator_e) in derivados:
+        derivados += [(c, pacote.fatores_kml[c]) for c in ("gasolina", "etanol", "diesel")]
+    for comb, fatores in derivados:
         ativo = comb in aplicaveis
         km = {}
-        for c, fator in zip(CICLOS, (fator_u, fator_e)):
+        for c, fator in zip(CICLOS, fatores):
             valor = kml_diesel(mj[c], fator) if ativo else nan
-            minimo, maximo = faixa_mj[c]
-            faixa = (kml_diesel(maximo, fator), kml_diesel(minimo, fator)) if ativo else (nan, nan)
+            if comb == "eletrico_eq":
+                minimo, maximo = faixa_mj[c]
+                faixa = (kml_diesel(maximo, fator), kml_diesel(minimo, fator)) if ativo else (nan, nan)
+            else:
+                faixa = _faixa(valor, _quantil(pacote, p, f"kml_{comb}_{c}"))
             _saida(r, f"kml_{comb}_{c}", valor, faixa)
             km[c] = (valor, faixa)
         (v_u, (min_u, max_u)), (v_e, (min_e, max_e)) = km["urbano"], km["estrada"]
-        _saida(
-            r, f"kml_{comb}", combinar_kml(v_u, v_e), (combinar_kml(min_u, min_e), combinar_kml(max_u, max_e))
-        )
+        total = combinar_kml(v_u, v_e)
+        if comb == "eletrico_eq":
+            faixa_total = (combinar_kml(min_u, min_e), combinar_kml(max_u, max_e))
+        else:
+            faixa_total = _faixa(total, _quantil(pacote, p, f"kml_{comb}"))
+        _saida(r, f"kml_{comb}", total, faixa_total)
     return r
 
 
