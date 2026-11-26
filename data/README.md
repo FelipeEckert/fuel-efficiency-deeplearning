@@ -23,6 +23,7 @@ The app does not need these files: it uses the versioned model in `modelos/vence
 |---|---|
 | Powertrain written in many ways ("Hibrido", "Plug-In", "Gasolina"…) | standardized to Combustão / Híbrido / Plug-in / Elétrico (combustion, hybrid, plug-in, electric) |
 | RAV4 S/SX Hybrid entered as combustion | powertrain set to hybrid when the name says HYBRID/HÍBRIDO/HEV |
+| The spreadsheet does not say which hybrids are full or mild | `tipo_hibrido` from the brand (`TIPO_HIBRIDO_MARCA`), with exceptions by model (Kia Niro and Carnival are full); a hybrid of an unmapped brand stops the data check |
 | Brand with extra spaces or different casing; "VW", "CAOACHANGAN" | uppercase, no extra spaces; VOLKSWAGEN, CAOA CHANGAN |
 | Power in 200+ formats (kW, cv, "176 cv (G) e 176 cv (E)", "120 + 10", "150/110") | converted to kW. Flex: the higher of the gasoline and ethanol values. Mercedes "A + B" = engine + electric motor. JAC "cv/kW". Number without a unit: VW = cv, Mercedes = kW |
 | F2 > 0.12 in 10 rows (Oroch, Duster, MINI JCW, Ferrari 296) | reported in N/(m/s)²; divided by 3.6² |
@@ -71,6 +72,7 @@ Column names are in Portuguese, as in the code.
 | `direcao` | steering: eletrica, hidraulica, eletro-hidraulica |
 | `bateria_kwh` | nominal battery capacity (kWh); 0 for combustion; no gaps |
 | `autonomia_eletrica_km` | corrected electric-mode range (km), column 78 of the spreadsheet; 0 for combustion and hybrid; present for all 159 plug-in and electric vehicles |
+| `tipo_hibrido` | hybrid architecture: pleno (full, 18), leve_48v (48 V mild, 41), leve_12v (12 V mild, Stellantis Bio-Hybrid, 6); nenhum for the other powertrains |
 | `bateria_estimada` | quality flag, not a model input: True when the battery came from inference or the median (19 hybrids) |
 
 **Targets** (corrected values, the ones on the label; empty when not applicable)
@@ -87,7 +89,7 @@ Column names are in Portuguese, as in the code.
 ## Known limitations
 
 - There is no drivetrain (4x2/4x4): that spreadsheet field describes the dynamometer, not the vehicle.
-- "Híbrido" mixes mild hybrids (e.g. Mercedes "120 + 10") with full hybrids.
+- `tipo_hibrido` is set by brand, not read from the spreadsheet. A brand that sells both full and mild hybrids needs an exception by model.
 - The unit rule for power without a unit holds for VW and Mercedes; a new brand in that format needs review.
 - Mild hybrid batteries come largely from databases (CarExpert, auto-data), not from the manufacturer; the 0.9 kWh of the Mercedes 48 V may be a generic value. The hybrid median (0.9) is pulled down by mild hybrids, so the Lexus UX 300h (full hybrid, no source) is underestimated, and is flagged as estimated.
 - The supplement is joined on brand + model + power + mass; if a new PBEV spreadsheet changes these values, the row falls back to the median (and is flagged as estimated).
