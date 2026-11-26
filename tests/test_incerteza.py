@@ -21,7 +21,38 @@ def test_quantil_conformal_exato():
 
 
 def test_saidas_com_faixa():
-    assert SAIDAS_COM_FAIXA == ALVOS + ["mj_km", "kml_gasolina", "kml_etanol"]
+    assert SAIDAS_COM_FAIXA == ALVOS + [
+        "mj_km",
+        "kml_gasolina",
+        "kml_etanol",
+        "kml_diesel_urbano",
+        "kml_diesel_estrada",
+        "kml_diesel",
+    ]
+
+
+def test_kml_de_combustao_mede_o_erro_do_caminho_do_app():
+    # o app mostra fator / MJ/km; o quantil vem do erro desse km/l, não da saída de km/l do modelo
+    e = np.arange(1, 11) / 100
+    df = pd.DataFrame(
+        {
+            "propulsao": ["Combustão"] * 9 + ["Plug-in"],
+            "mj_km_urbano": 1.0,
+            "mj_km_estrada": 1.0,
+            "mj_km": 1.0,
+        }
+    )
+    for a in ALVOS[2:]:
+        df[a] = np.nan
+    df["kml_gasolina_urbano"] = 10 * (1 + e)
+    oof = pd.DataFrame(
+        {"mj_km_urbano": [1.0] * 10, "mj_km_estrada": [1.0] * 10, "kml_gasolina_urbano": 10 * (1 + e)}
+    )
+    fatores = {"gasolina": (10.0, 10.0), "etanol": (7.0, 7.0), "diesel": (12.0, 12.0)}
+    q = calcular_quantis(df, oof, fatores)
+    assert q["Combustão"]["kml_gasolina_urbano"] == pytest.approx(0.09)
+    assert q["Plug-in"]["kml_gasolina_urbano"] == 0  # plug-in segue com o km/l do próprio modelo
+    assert calcular_quantis(df, oof)["Combustão"]["kml_gasolina_urbano"] == 0  # sem fatores, como antes
 
 
 def test_aplicar_faixa():

@@ -10,13 +10,21 @@ import pandas as pd
 from eficiencia.esquema import ALVOS
 from eficiencia.fisica import combinar_kml, combinar_mj
 
-SAIDAS_COM_FAIXA = ALVOS + ["mj_km", "kml_gasolina", "kml_etanol"]
+SAIDAS_COM_FAIXA = ALVOS + [
+    "mj_km",
+    "kml_gasolina",
+    "kml_etanol",
+    "kml_diesel_urbano",
+    "kml_diesel_estrada",
+    "kml_diesel",
+]
+CICLOS = ("urbano", "estrada")
 
 
 def _real_e_previsto(df: pd.DataFrame, oof: pd.DataFrame, saida: str) -> tuple[pd.Series, pd.Series] | None:
-    if saida in ALVOS:
-        if saida in df and saida in oof:
-            return df[saida], oof[saida]
+    if saida in df and saida in oof:  # saída por ciclo
+        return df[saida], oof[saida]
+    if saida in ALVOS or saida.endswith(CICLOS):
         return None
     if saida == "mj_km":
         if {"mj_km_urbano", "mj_km_estrada"} <= set(oof.columns) and "mj_km" in df:
@@ -30,7 +38,28 @@ def _real_e_previsto(df: pd.DataFrame, oof: pd.DataFrame, saida: str) -> tuple[p
     return None
 
 
-def calcular_quantis(df: pd.DataFrame, oof: pd.DataFrame, nivel: float = 0.9) -> dict[str, dict[str, float]]:
+def _kml_do_app(df: pd.DataFrame, oof: pd.DataFrame, fatores: dict[str, tuple[float, float]]) -> pd.DataFrame:
+    """Combustão e híbrido: o app mostra km/l = fator / MJ/km, então é esse km/l que tem o erro medido."""
+    oof = oof.copy()
+    linhas = df["propulsao"].isin(["Combustão", "Híbrido"]).to_numpy()
+    for comb, por_ciclo in fatores.items():
+        for c, fator in zip(CICLOS, por_ciclo):
+            coluna = f"kml_{comb}_{c}"
+            if coluna not in oof:
+                oof[coluna] = float("nan")
+            oof.loc[linhas, coluna] = fator / oof.loc[linhas, f"mj_km_{c}"]
+    return oof
+
+
+def calcular_quantis(
+    df: pd.DataFrame,
+    oof: pd.DataFrame,
+    fatores: dict[str, tuple[float, float]] | None = None,
+    nivel: float = 0.9,
+) -> dict[str, dict[str, float]]:
+    """Quantis por propulsão e saída. Com os fatores de km/l, o km/l de combustão e híbrido é o do app."""
+    if fatores is not None:
+        oof = _kml_do_app(df, oof, fatores)
     quantis: dict[str, dict[str, float]] = {}
     for propulsao in df["propulsao"].unique():
         linhas = df["propulsao"] == propulsao

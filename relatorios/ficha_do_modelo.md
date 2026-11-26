@@ -55,14 +55,15 @@ the coverage a new family gets. The km/l column goes through the same code as th
 
 | Powertrain | Cars | MJ/km coverage | 90 % interval | Gasoline km/l coverage |
 |---|---|---|---|---|
-| Combustion | 286 | 89.2 % | 85.8–91.8 % | 92.4 % |
+| Combustion | 286 | 89.2 % | 85.8–91.8 % | 91.1 % |
 | Electric | 109 | 91.7 % | 86.3–95.1 % | — |
 | Hybrid | 65 | 87.7 % | 79.4–92.9 % | 93.1 % |
 | Plug-in | 50 | 92.0 % | 83.3–96.4 % | 94.0 % |
-| **All** | **510** | **89.8 %** | **87.4–91.8 %** | **92.7 %** |
+| **All** | **510** | **89.8 %** | **87.4–91.8 %** | **91.9 %** |
 
 - **Per fold:** MJ/km coverage goes from 85.7 % to 92.4 %.
-- **Ethanol and diesel:** km/l coverage is 96.4 % and 98.2 %, so the range there is wider than it needs to be.
+- **Ethanol and diesel:** km/l coverage is 89.3 % (168 cars) and 89.5 % (57 cars). The 7 diesel hybrids are too few
+  for their own range: 5 of them fall inside.
 - **Still open:** all of this is one model year. Cars from the next PBEV may be farther from the data.
 
 **Half-widths the app uses**, read from the shipped model package:
@@ -75,7 +76,9 @@ the coverage a new family gets. The km/l column goes through the same code as th
 | Plug-in | ±25.3 % | ±33.0 % | ±28.6 % |
 
 For combustion and hybrids, km/l is derived from MJ/km with each fuel's physical factor, so the two numbers never
-contradict each other. For plug-ins that ratio varies a lot from car to car, so km/l comes from dedicated models.
+contradict each other. The factor is a median, so the km/l range comes from the measured error of that derived km/l,
+per fuel: combined ±9.0 % for gasoline, ±7.5 % for ethanol and ±7.8 % for diesel in combustion cars, and about ±15 %
+in hybrids. For plug-ins the ratio varies a lot from car to car, so km/l comes from dedicated models.
 
 ## Simulator example
 
@@ -83,8 +86,8 @@ Citroën Aircross flex, 1210 kg. This car is in the data, which is why the predi
 exactly.
 
 - **Prediction:** 1.80 MJ/km (range 1.64 to 1.96); homologation value: 1.80.
-- **Gasoline:** 12.0 km/l (range 11.0 to 13.3).
-- **Ethanol:** 8.4 km/l.
+- **Gasoline:** 12.0 km/l (range 11.0 to 13.1).
+- **Ethanol:** 8.4 km/l (range 7.7 to 9.0).
 
 | Change | Effect on MJ/km | Gasoline |
 |---|---|---|
@@ -110,10 +113,10 @@ The simulator averages the predictions within ±5 % around each adjustment. With
   `TIPO_HIBRIDO_MARCA` in `eficiencia.dados`, or the data check stops.
 - **Hybrid km/l.** The km/l the app shows for gasoline hybrids comes from MJ/km, so the two always agree. That costs
   about 1.3 points: 7.4 % against 6.1 % for the model's own km/l output.
-- **Plug-in diesel.** There is no plug-in diesel in the data. Its km/l comes from MJ/km with the diesel factor of
-  combustion and hybrid cars, not from a dedicated model. For gasoline plug-ins that factor would overstate km/l
-  about 2.5–3 times (median km/l × MJ/km of 8 for plug-ins against 21 to 22 for the others), so the app shows it
-  without a range and warns not to use it for decisions.
+- **Plug-in diesel.** There is no plug-in diesel in the data. Its km/l is the model's gasoline km/l for that car,
+  scaled by the diesel-to-gasoline energy ratio of combustion and hybrid cars (about 1.24), with the gasoline range.
+  Before, it came from MJ/km with the combustion diesel factor, which would overstate a plug-in's km/l about 2.5–3
+  times. Neither number nor range has been checked against a real plug-in diesel, and the app says so.
 - **Cars from future years.** There has been no validation on a PBEV from another year yet. The temporal test waits for
   PBEV 2027.
 - **On-road consumption.** The model learns homologation consumption, which is usually lower than real-world use.
