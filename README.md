@@ -95,7 +95,7 @@ uv run pytest -q
 uv run ruff check . && uv run ruff format --check .
 ```
 
-170 tests cover the cleaning rules, the physics helpers, every model family, the monotonicity and uncertainty logic, prediction, explanations and the app pages (with Streamlit's `AppTest`). When the source data is not available, as in CI, the suite generates a synthetic table with the same schema ([`tests/dados_sinteticos.py`](tests/dados_sinteticos.py)), so everything except the spreadsheet-cleaning checks and a few golden-value checks on the real data runs on every push and pull request.
+210 tests cover the cleaning rules, the physics helpers, every model family, the monotonicity and uncertainty logic, prediction, explanations and the app pages (with Streamlit's `AppTest`). When the source data is not available, as in CI, the suite generates a synthetic table with the same schema ([`tests/dados_sinteticos.py`](tests/dados_sinteticos.py)), so everything except the spreadsheet-cleaning checks and a few golden-value checks on the real data runs on every push and pull request.
 
 ## Project layout
 

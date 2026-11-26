@@ -92,7 +92,7 @@ def test_comparacao_relatorio_corrompido(tmp_path, monkeypatch):
 def test_comparacao_sem_candidatos(tmp_path, monkeypatch):
     at = _relatorio(tmp_path, monkeypatch, json.dumps({"vencedor": "xgboost", "candidatos": {}}))
     assert not at.exception
-    assert at.error[0].value == MSG_CORROMPIDO
+    assert at.error[0].value == MSG_CORROMPIDO.replace(".", " (invalid field: candidatos).", 1)
 
 
 def test_comparacao_sem_vencedor(tmp_path, monkeypatch):
@@ -115,4 +115,7 @@ def test_comparacao_erro_por_propulsao_nulo(tmp_path, monkeypatch):
     metricas["candidatos"]["xgboost"]["erro_por_propulsao"] = None
     at = _relatorio(tmp_path, monkeypatch, json.dumps(metricas))
     assert not at.exception
-    assert at.error[0].value == MSG_CORROMPIDO
+    assert at.error[0].value == (
+        "The training report is incomplete or corrupted (invalid field: candidatos.xgboost.erro_por_propulsao). "
+        "Run the training again: uv run eficiencia-treinar"
+    )
