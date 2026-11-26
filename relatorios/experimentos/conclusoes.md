@@ -335,3 +335,31 @@ The five candidates' out-of-fold errors come from the 2026-11-12 studies. They w
 Only hybrids get the median battery. The median of hybrids with a known battery is 0.90 kWh in the training part of all 15 folds (3 seeds × 5 folds), the same as the global value. Computing it inside the fold would change nothing.
 
 The 19 hybrids with an estimated battery do err more: 10.94 % against 6.68 %. Finding their real capacity is the next data fix.
+
+## H12: hybrid type as an input (2026-11-26)
+
+The audit's error analysis found that the "Híbrido" powertrain mixes full hybrids with 48 V and 12 V mild hybrids, and that full hybrids carried most of the hybrid error. The spreadsheet does not say which is which, so `eficiencia.dados` now sets `tipo_hibrido` from the brand, with exceptions by model: 18 full, 41 mild 48 V and 6 mild 12 V (Stellantis Bio-Hybrid).
+
+**Paired probe.** XGBoost `cv_fixa` with the published hyperparameters held fixed and fold seeds 0, 1 and 2, with and without the new input.
+
+| Variant | Mean | Per seed | Hybrid | Full hybrid | Mild 48 V | Mild 12 V |
+|---|---|---|---|---|---|---|
+| Without | 5.394 % | 5.27 / 5.53 / 5.39 | 7.38 / 7.30 / 8.08 | 12.3 % | 6.3 % | 2.4 % |
+| With `tipo_hibrido` | 5.214 % | 5.06 / 5.29 / 5.29 | 6.16 / 6.67 / 7.21 | 9.5 % | 6.1 % | 2.2 % |
+
+The input passed the bar: −0.18 points of mean error, better on all 3 seeds, and the target group improved.
+
+**Retraining.** The full nested search (100 trials per fold, 600 per candidate, 2026-11-25 run, about 26 h) gives:
+
+| Candidate | Before | After |
+|---|---|---|
+| XGBoost (selected) | 5.64 % | 5.40 % |
+| Random forest | 6.53 % | 6.36 % |
+| Neural network, one per target | 6.52 % | 6.62 % |
+| Neural network, multi-output | 6.62 % | 6.75 % |
+| Linear regression | 7.36 % | 6.92 % |
+
+- **XGBoost:** every powertrain improved. Combustion 4.17 → 4.04 %, electric 4.76 → 4.43 %, hybrid 7.93 → 7.49 %, plug-in 13.05 → 12.65 %.
+- **Coverage of the 90 % range** on families left out of the calibration (the H10 method on the new studies): MJ/km 458 / 510 = 89.8 % (90 % interval 87.4–91.8 %), per fold 85.7–92.4 %. Gasoline km/l 92.7 %, ethanol 96.4 %, diesel 98.2 %.
+- **Not re-measured:** the H11 numbers (km/l through the app, electric range, siblings, candidate resampling) were taken on the 5.64 % model.
+

@@ -96,6 +96,8 @@ def _ao_mudar_propulsao(chave: str) -> None:
         atual = st.session_state[f"{chave}_{campo}"]
         if atual == 0 or not minimo <= atual <= maximo:  # zerado ou fora da faixa da propulsão vira a mediana
             st.session_state[f"{chave}_{campo}"] = mediana
+    if propulsao == "Híbrido" and st.session_state[f"{chave}_tipo_hibrido"] == "nenhum":
+        st.session_state[f"{chave}_tipo_hibrido"] = "leve_48v"  # o tipo mais comum entre os híbridos da base
     if st.session_state[f"{chave}_propulsao"] == "Elétrico":
         st.session_state[f"{chave}_combustivel"] = "eletrico"
         st.session_state[f"{chave}_transmissao"] = "direta"
@@ -197,9 +199,18 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
     )
     marchas = c3.number_input(ROTULOS["n_marchas"], key=chave_de("n_marchas"), step=1.0)
     bateria = autonomia = 0.0
+    tipo = "nenhum"
     if propulsao != "Combustão":
         c1, c2 = st.columns(2)
         bateria = c1.number_input(ROTULOS["bateria_kwh"], key=chave_de("bateria_kwh"), step=1.0)
+        if propulsao == "Híbrido":
+            tipo = c2.selectbox(
+                ROTULOS["tipo_hibrido"],
+                VALORES["tipo_hibrido"][1:],  # sem "nenhum"
+                key=chave_de("tipo_hibrido"),
+                format_func=_nome("tipo_hibrido"),
+                help="Full hybrids can drive on electricity alone; mild hybrids only assist the engine.",
+            )
         if propulsao in ("Plug-in", "Elétrico"):
             autonomia = c2.number_input(
                 ROTULOS["autonomia_eletrica_km"], key=chave_de("autonomia_eletrica_km"), step=1.0
@@ -207,6 +218,7 @@ def formulario_veiculo(chave: str, padrao: dict | None = None) -> dict:
 
     return {
         "propulsao": propulsao,
+        "tipo_hibrido": tipo,
         "combustivel": "eletrico" if eletrico else combustivel,
         "categoria": categoria,
         "categoria_proconve": proconve,

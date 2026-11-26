@@ -9,7 +9,15 @@ from eficiencia.dados import SAIDA
 
 CAMINHO_BASE: Path = SAIDA
 
-CATEGORICAS = ["propulsao", "combustivel", "categoria", "categoria_proconve", "transmissao", "direcao"]
+CATEGORICAS = [
+    "propulsao",
+    "tipo_hibrido",
+    "combustivel",
+    "categoria",
+    "categoria_proconve",
+    "transmissao",
+    "direcao",
+]
 NUMERICAS = [
     "massa_om_kg",
     "classe_inercia_kg",
@@ -35,6 +43,7 @@ MONOTONAS = ["massa_om_kg", "classe_inercia_kg", "f0_n", "f2_n_kmh2"]
 
 VALORES: dict[str, list[str]] = {
     "propulsao": ["Combustão", "Elétrico", "Híbrido", "Plug-in"],
+    "tipo_hibrido": ["nenhum", "pleno", "leve_48v", "leve_12v"],
     "combustivel": ["gasolina", "flex", "eletrico", "diesel"],
     "categoria": [
         "EXG",
@@ -61,6 +70,7 @@ VALORES: dict[str, list[str]] = {
 
 ROTULOS: dict[str, str] = {
     "propulsao": "Powertrain",
+    "tipo_hibrido": "Hybrid type",
     "combustivel": "Fuel",
     "categoria": "Category",
     "categoria_proconve": "PROCONVE category",
@@ -91,6 +101,12 @@ NOMES_VALORES: dict[str, dict[str, str]] = {
         "Elétrico": "Electric",
         "Híbrido": "Hybrid",
         "Plug-in": "Plug-in hybrid",
+    },
+    "tipo_hibrido": {
+        "nenhum": "Not a hybrid",
+        "pleno": "Full hybrid",
+        "leve_48v": "Mild hybrid, 48 V",
+        "leve_12v": "Mild hybrid, 12 V",
     },
     "combustivel": {
         "gasolina": "Gasoline",

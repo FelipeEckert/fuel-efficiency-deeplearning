@@ -83,9 +83,11 @@ def test_autonomia_eletrica_obrigatoria_em_recarregaveis():
 
 
 def test_autonomia_eletrica_zera_sem_recarga_e_tem_limite():
-    for prop in ("Combustão", "Híbrido"):
+    for prop, tipo in (("Combustão", "nenhum"), ("Híbrido", "pleno")):
         ok, erros = validar(
-            pd.DataFrame([veiculo(propulsao=prop, bateria_kwh=1.5, autonomia_eletrica_km=50)])
+            pd.DataFrame(
+                [veiculo(propulsao=prop, tipo_hibrido=tipo, bateria_kwh=1.5, autonomia_eletrica_km=50)]
+            )
         )
         assert erros == [] and ok.iloc[0]["autonomia_eletrica_km"] == 0
     _, erros = validar(
@@ -100,3 +102,18 @@ def test_pbt_menor_que_a_massa_e_marchas_fracionadas():
     assert len(erros) == 2 and erros[0].startswith("row 1: ") and erros[1].startswith("row 2: ")
     ok, erros = validar(pd.DataFrame([veiculo(pbt_kg=v["massa_om_kg"], n_marchas=None)]))
     assert erros == [] and len(ok) == 1  # PBT igual à massa e marchas ausentes continuam válidos
+
+
+def test_tipo_de_hibrido():
+    hibrido = {"propulsao": "Híbrido", "bateria_kwh": 1.3}
+    _, erros = validar(
+        pd.DataFrame([veiculo(**hibrido, tipo_hibrido=None), veiculo(**hibrido, tipo_hibrido="nenhum")])
+    )
+    assert len(erros) == 2 and all("Hybrid type" in e for e in erros)  # híbrido precisa do tipo
+    ok, erros = validar(
+        pd.DataFrame([veiculo(**hibrido, tipo_hibrido="Full"), veiculo(tipo_hibrido="pleno")])
+    )
+    assert erros == [] and list(ok["tipo_hibrido"]) == [
+        "pleno",
+        "nenhum",
+    ]  # sinônimo aceito; fora do híbrido vira nenhum

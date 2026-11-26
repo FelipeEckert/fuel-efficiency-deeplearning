@@ -42,6 +42,7 @@ SINONIMOS = {
     },
     "combustivel": {"petrol": "gasolina", "electric": "eletrico", "flex": "flex"},
     "transmissao": {"automatic": "automatica", "dual clutch": "dct", "direct": "direta"},
+    "tipo_hibrido": {"full": "pleno", "hev": "pleno", "mild 48v": "leve_48v", "mild 12v": "leve_12v"},
 }
 
 _CANONICOS = {
@@ -104,6 +105,8 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
                 obrigatorio = limpo.get("propulsao") not in (None, "Combustão")
             elif coluna == "autonomia_eletrica_km":
                 obrigatorio = limpo.get("propulsao") in ("Plug-in", "Elétrico")
+            elif coluna == "tipo_hibrido":
+                obrigatorio = limpo.get("propulsao") == "Híbrido"
             elif coluna == "cilindrada_cm3":
                 obrigatorio = limpo.get("propulsao") not in (None, "Elétrico")
             else:
@@ -132,6 +135,10 @@ def validar(df: pd.DataFrame, primeira_linha: int = 1) -> tuple[pd.DataFrame, li
             problemas.append(f"{ROTULOS['pbt_kg']} must be at least the {ROTULOS['massa_om_kg']}")
         if isinstance(marchas, float) and not math.isnan(marchas) and not marchas.is_integer():
             problemas.append(f"{ROTULOS['n_marchas']} must be a whole number")
+        if prop == "Híbrido" and limpo.get("tipo_hibrido") == "nenhum":
+            problemas.append(f"{ROTULOS['tipo_hibrido']} must be full, mild 48 V or mild 12 V for a hybrid")
+        if prop is not None and prop != "Híbrido":
+            limpo["tipo_hibrido"] = "nenhum"
         if prop == "Combustão":
             limpo["bateria_kwh"] = 0.0
         if prop == "Elétrico":

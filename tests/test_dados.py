@@ -12,6 +12,7 @@ from eficiencia.dados import (
     potencia_kw,
     salvar,
     sem_acento,
+    tipo_hibrido,
     transmissao,
 )
 
@@ -54,6 +55,12 @@ def test_contagens(limpo):
         "Plug-in": 50,
         "Elétrico": 109,
     }
+    assert df["tipo_hibrido"].value_counts().to_dict() == {
+        "nenhum": 445,
+        "leve_48v": 41,
+        "pleno": 18,
+        "leve_12v": 6,
+    }
 
 
 @pytest.mark.parametrize(
@@ -74,6 +81,17 @@ def test_potencia_kw(txt, marca, esperado):
 def test_transmissao():
     assert transmissao("A - 6", "Combustão") == ("automatica", 6.0)
     assert transmissao("N.A.", "Elétrico") == ("direta", 1.0)
+
+
+def test_tipo_hibrido():
+    assert tipo_hibrido("TOYOTA", "RAV4", "Híbrido") == "pleno"
+    assert (
+        tipo_hibrido("KIA", "NIRO", "Híbrido") == "pleno"
+        and tipo_hibrido("KIA", "SPORTAGE", "Híbrido") == "leve_48v"
+    )
+    assert tipo_hibrido("FIAT", "PULSE", "Híbrido") == "leve_12v"
+    assert tipo_hibrido("TOYOTA", "COROLLA", "Combustão") == "nenhum"
+    assert tipo_hibrido("MARCA NOVA", "X", "Híbrido") is None  # o checar para e pede o mapeamento
 
 
 def test_hibrido_no_nome():

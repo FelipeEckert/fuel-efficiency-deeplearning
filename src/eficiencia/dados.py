@@ -86,6 +86,24 @@ FEATURES = [
     "autonomia_eletrica_km",
 ]
 CV_PARA_KW = 0.7355
+# arquitetura do híbrido por marca, com exceções por modelo; marca nova com híbrido para no checar
+TIPO_HIBRIDO_MARCA = {
+    **dict.fromkeys(["TOYOTA", "LEXUS", "HYUNDAI", "GAC", "GWM", "OMODA", "PORSCHE"], "pleno"),
+    **dict.fromkeys(["FIAT", "PEUGEOT"], "leve_12v"),  # Bio-Hybrid 12 V da Stellantis
+    **dict.fromkeys(
+        ["MERCEDES-BENZ", "AUDI", "BMW", "LAND ROVER", "JEEP", "CAOA CHERY", "FOTON", "KIA"], "leve_48v"
+    ),
+}
+TIPO_HIBRIDO_MODELO = {("KIA", "NIRO"): "pleno", ("KIA", "CARNIVAL"): "pleno"}
+
+
+def tipo_hibrido(marca: str, modelo: str, propulsao: str) -> str | None:
+    """pleno, leve_48v ou leve_12v para híbridos; nenhum para o resto; None se a marca não estiver mapeada."""
+    if propulsao != "Híbrido":
+        return "nenhum"
+    return TIPO_HIBRIDO_MODELO.get((marca, modelo), TIPO_HIBRIDO_MARCA.get(marca))
+
+
 HIBRIDO_NO_NOME = re.compile(r"\b(?:HYBRID|HIBRIDO|HEV)\b")  # palavra inteira: não casa MHEVX nem THEVENIN
 
 
@@ -285,6 +303,9 @@ def limpar(caminho=ENTRADA):
     )
     limpo["n_versoes"] = agrupado.size()
     limpo["grupo_cv"] = [grupo_cv(ma, mo) for ma, mo in zip(limpo["marca"], limpo["modelo"])]
+    limpo["tipo_hibrido"] = [
+        tipo_hibrido(ma, mo, p) for ma, mo, p in zip(limpo["marca"], limpo["modelo"], limpo["propulsao"])
+    ]
     limpo = limpo.reset_index(drop=True)
 
     relatorio = {
@@ -338,6 +359,9 @@ def checar(df):
     assert df["mj_km"].between(0.2, 6).all(), "MJ/km fora da faixa"
     assert set(df["propulsao"]) <= {"Combustão", "Híbrido", "Plug-in", "Elétrico"}
     assert df["combustivel"].notna().all() and df["propulsao"].notna().all()
+    sem_tipo = df.loc[df["tipo_hibrido"].isna(), "marca"].unique().tolist()
+    assert not sem_tipo, f"híbrido de marca sem tipo em TIPO_HIBRIDO_MARCA: {sem_tipo}"
+    assert (df["tipo_hibrido"].eq("nenhum") == df["propulsao"].ne("Híbrido")).all()
     assert (df.loc[df["propulsao"].eq("Combustão"), "bateria_kwh"] == 0).all()
     assert df["bateria_kwh"].notna().all(), "bateria sem valor"
     aut = df["autonomia_eletrica_km"]

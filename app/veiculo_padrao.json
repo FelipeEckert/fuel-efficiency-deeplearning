@@ -1,5 +1,6 @@
 {
   "propulsao": "Combustão",
+  "tipo_hibrido": "nenhum",
   "combustivel": "flex",
   "categoria": "SUVC",
   "categoria_proconve": "PL",

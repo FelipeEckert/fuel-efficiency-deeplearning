@@ -1,10 +1,10 @@
 # Training report: vehicle energy efficiency
 
-Date: 2026-11-13 · data hash: `7084f5b9`
+Date: 2026-11-26 · data hash: `7f9a2a41`
 
 **Selected model: XGBoost**, the lowest error among the candidates that pass the monotonicity check.
 
-Hyperparameters: `{'n_estimators': 1262, 'max_depth': 6, 'learning_rate': 0.03160110464004988, 'subsample': 0.6161206013916076, 'colsample_bytree': 0.5205588203150939, 'min_child_weight': 2, 'reg_lambda': 0.03753736138591272}`
+Hyperparameters: `{'n_estimators': 635, 'max_depth': 6, 'learning_rate': 0.02539564354657952, 'subsample': 0.9633871589432483, 'colsample_bytree': 0.5959057813515273, 'min_child_weight': 3, 'reg_lambda': 0.0013970069248023164}`
 
 Errors are the mean absolute percentage error on combined MJ/km, out of sample (nested cross-validation grouped by model family).
 
@@ -12,21 +12,21 @@ Errors are the mean absolute percentage error on combined MJ/km, out of sample (
 
 | Candidate | MJ/km error | Monotonicity | Trials |
 |---|---|---|---|
-| Linear regression | 7.36 % | pass | 600 |
-| Random forest | 6.53 % | pass | 600 |
-| XGBoost | 5.64 % | pass | 600 |
-| Neural network, one per target | 6.52 % | pass | 600 |
-| Neural network, multi-output | 6.62 % | pass | 600 |
+| Linear regression | 6.92 % | pass | 600 |
+| Random forest | 6.36 % | pass | 600 |
+| XGBoost | 5.4 % | pass | 600 |
+| Neural network, one per target | 6.62 % | pass | 600 |
+| Neural network, multi-output | 6.75 % | pass | 600 |
 
 ## Error by powertrain (MJ/km)
 
 | Candidate | Combustion | Electric | Hybrid | Plug-in hybrid |
 |---|---|---|---|---|
-| Linear regression | 5.63 % | 7.43 % | 7.88 % | 16.48 % |
-| Random forest | 5.01 % | 4.56 % | 12.14 % | 12.25 % |
-| XGBoost | 4.17 % | 4.76 % | 7.93 % | 13.05 % |
-| Neural network, one per target | 5.17 % | 5.67 % | 7.14 % | 15.28 % |
-| Neural network, multi-output | 5.41 % | 5.29 % | 6.73 % | 16.33 % |
+| Linear regression | 5.36 % | 7.33 % | 6.01 % | 16.12 % |
+| Random forest | 4.97 % | 4.68 % | 11.51 % | 11.3 % |
+| XGBoost | 4.04 % | 4.43 % | 7.49 % | 12.65 % |
+| Neural network, one per target | 5.03 % | 5.32 % | 6.8 % | 18.29 % |
+| Neural network, multi-output | 5.48 % | 5.66 % | 6.77 % | 16.34 % |
 
 ## Figures
 
