@@ -363,3 +363,21 @@ The input passed the bar: −0.18 points of mean error, better on all 3 seeds, a
 - **Coverage of the 90 % range** on families left out of the calibration (the H10 method on the new studies): MJ/km 458 / 510 = 89.8 % (90 % interval 87.4–91.8 %), per fold 85.7–92.4 %. Gasoline km/l 92.7 %, ethanol 96.4 %, diesel 98.2 %.
 - **Not re-measured:** the H11 numbers (km/l through the app, electric range, siblings, candidate resampling) were taken on the 5.64 % model.
 
+## H13: inputs from the technical specification spreadsheet (2026-11-26)
+
+`ESPECIFICAÇÃO TÉCNICA - FEVEREIRO DE 2026.XLSM` lists 302 versions with fields the PBEV spreadsheet lacks. Seven of them are filled for nearly every version: drivetrain (4x2 or 4x4), gasoline torque, front rim diameter, front tire width, length, width and height. Drag coefficient and gear ratios are mostly empty.
+
+**Matching.** The spreadsheet has no homologation key. Each version was matched to the PBEV row of the same brand with the closest MJ/km, mass and city km/l, plus a penalty when the model name differs. 234 versions matched with confidence, and they cover **150 of the 510 homologations** (29 %). Versions that fall on the same homologation were combined by their median. The other 360 homologations were left empty, which the preprocessing fills with the training mean.
+
+**Paired probe.** XGBoost `cv_fixa` with the published hyperparameters (the 5.40 % model) held fixed and fold seeds 0, 1 and 2.
+
+| Variant | Mean | Per seed | Cars with spec (150) | Cars without (360) |
+|---|---|---|---|---|
+| Without | 5.475 % | 5.33 / 5.69 / 5.40 | 3.58 / 3.62 / 3.35 | 6.06 / 6.56 / 6.25 |
+| With the 7 inputs | 5.603 % | 5.40 / 5.80 / 5.60 | 3.76 / 3.69 / 3.52 | 6.09 / 6.68 / 6.47 |
+
+**Verdict: rejected.**
+- **Worse everywhere:** +0.13 points of mean error, worse on all 3 seeds and in both groups. Plug-ins lost the most (12.99 % → 13.54 % on average).
+- **Why:** on the cars that have them, drivetrain, size and tires add little that mass, F0, F2 and power do not already carry. On the other two thirds the mean fill is noise.
+- **Not tried:** a subset of the inputs, or a separate model for the cars with a spec sheet. With a loss on every seed, neither looked worth the extra code.
+
